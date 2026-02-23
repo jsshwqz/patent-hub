@@ -1,0 +1,38 @@
+﻿// 推荐相似专利
+pub async fn api_recommend_similar(
+    Path(id): Path<String>,
+    State(s): State<AppState>,
+) -> Json<serde_json::Value> {
+    let patent = match s.db.get_patent(&id) {
+        Ok(Some(p)) => p,
+        _ => return Json(json!({"error": "专利不存在"})),
+    };
+    
+    // 使用标题关键词搜索相似专利
+    let keywords: Vec<&str> = patent.title.split_whitespace().take(5).collect();
+    let query = keywords.join(" ");
+    
+    let req = SearchRequest { 
+        query, 
+        page: 1, 
+        page_size: 10, 
+        country: None, 
+        date_from: None, 
+        date_to: None,
+        search_type: None,
+    };
+    
+    match api_search_online(State(s), Json(req)).await {
+        Json(result) => {
+            if let Some(patents) = result.get("patents").and_then(|p| p.as_array()) {
+                let filtered: Vec<_> = patents.iter()
+                    .filter(|p| p.get("id").and_then(|i| i.as_str()) != Some(&id))
+                    .take(5)
+                    .collect();
+                Json(json!({"similar": filtered}))
+            } else {
+                Json(json!({"similar": []}))
+            }
+        }
+    }
+}

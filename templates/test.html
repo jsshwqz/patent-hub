@@ -1,0 +1,25 @@
+﻿<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>测试</title></head>
+<body>
+<h2>API 测试</h2>
+<button onclick="test()">测试搜索</button>
+<div id="result"></div>
+<script>
+async function test() {
+    document.getElementById('result').innerHTML = '测试中...';
+    try {
+        const res = await fetch('/api/search/online', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query: '咖啡', page: 1, page_size: 5})
+        });
+        const data = await res.json();
+        document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+    } catch (e) {
+        document.getElementById('result').innerHTML = '错误: ' + e;
+    }
+}
+</script>
+</body>
+</html>

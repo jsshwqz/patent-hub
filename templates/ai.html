@@ -1,0 +1,61 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 助手 - Patent Hub</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">🔬 Patent Hub</a>
+        <div class="nav-links">
+            <a href="/search">专利检索</a>
+            <a href="/ai" class="active">AI 助手</a>
+        </div>
+    </nav>
+    <main class="container">
+        <div class="chat-container">
+            <h2 style="margin-bottom:8px;">🤖 专利 AI 助手</h2>
+            <p class="hint">可以问我任何专利相关的问题：技术分析、权利要求解读、专利检索策略等。</p>
+            <div class="chat-box" id="chat-messages"></div>
+            <div class="chat-input">
+                <input type="text" id="chat-msg" placeholder="输入你的问题..." autofocus>
+                <button onclick="sendChat()">发送</button>
+            </div>
+        </div>
+    </main>
+    <script>
+    document.getElementById('chat-msg').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendChat();
+    });
+    async function sendChat() {
+        var input = document.getElementById('chat-msg');
+        var msg = input.value.trim();
+        if (!msg) return;
+        input.value = '';
+        var box = document.getElementById('chat-messages');
+        var escaped = document.createElement('div');
+        escaped.textContent = msg;
+        box.innerHTML += '<div class="msg user">' + escaped.innerHTML + '</div>';
+        var loadingId = 'ai-' + Date.now();
+        box.innerHTML += '<div class="msg ai" id="' + loadingId + '">思考中...</div>';
+        box.scrollTop = box.scrollHeight;
+        try {
+            var resp = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: msg })
+            });
+            var data = await resp.json();
+            document.getElementById(loadingId).innerHTML = data.content.replace(/\n/g, '<br>');
+        } catch(e) {
+            var el = document.getElementById(loadingId);
+            el.innerHTML = '请求失败: ' + e;
+            el.classList.add('error');
+        }
+        box.scrollTop = box.scrollHeight;
+    }
+    </script>
+</body>
+</html>

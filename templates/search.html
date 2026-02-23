@@ -1,0 +1,295 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>专利检索 - Patent Hub</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<nav class="navbar">
+<a href="/" class="logo">🔬 Patent Hub</a>
+<div class="nav-links">
+<a href="/search" class="active">专利检索</a>
+<a href="/compare">专利对比</a>
+<a href="/ai">AI 助手</a>
+</div>
+</nav>
+<main class="container">
+<h2 style="margin-bottom: 16px;">专利检索</h2>
+<div class="search-form">
+<input type="text" id="search-input" placeholder="输入关键词、专利号、公开号或申请人..." autofocus>
+<select id="country-filter">
+<option value="">全部地区</option>
+<option value="CN">中国</option>
+<option value="US">美国</option>
+<option value="EP">欧洲</option>
+<option value="JP">日本</option>
+<option value="KR">韩国</option>
+</select>
+<select id="search-mode">
+<option value="online">在线搜索 (Google Patents)</option>
+<option value="local">本地数据库</option>
+</select>
+<input type="date" id="date-from" placeholder="起始日期" style="width: 140px;">
+<input type="date" id="date-to" placeholder="截止日期" style="width: 140px;">
+<button onclick="doSearch(1)">检索</button>
+<button onclick="exportResults()" style="background: #238636;">导出 Excel</button>
+</div>
+<div id="search-history" style="margin: 16px 0; padding: 12px; background: #161b22; border-radius: 6px; display: none;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+<span style="color: #8b949e; font-size: 13px;">🕐 搜索历史</span>
+<button onclick="clearHistory()" style="padding: 4px 8px; font-size: 12px; background: #21262d;">清空</button>
+</div>
+<div id="history-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+</div>
+<div id="results-info"></div>
+<div id="stats-container" style="display:none; margin: 20px 0; padding: 20px; background: #161b22; border-radius: 8px;">
+<h3 style="margin: 0 0 16px 0; color: #58a6ff;">📊 统计分析</h3>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+<div>
+<h4 style="margin: 0 0 12px 0; color: #8b949e;">申请人 TOP 10</h4>
+<div id="applicant-chart"></div>
+</div>
+<div>
+<h4 style="margin: 0 0 12px 0; color: #8b949e;">国家/地区分布</h4>
+<div id="country-chart"></div>
+</div>
+</div>
+<div style="margin-top: 20px;">
+<h4 style="margin: 0 0 12px 0; color: #8b949e;">申请趋势</h4>
+<div id="year-chart"></div>
+</div>
+</div>
+<div id="results"></div>
+<div id="pagination" style="display: flex; gap: 8px; justify-content: center; margin-top: 20px;"></div>
+</main>
+<script>
+// 搜索历史管理
+function saveSearchHistory(query) {
+    let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    history = history.filter(h => h !== query);
+    history.unshift(query);
+    history = history.slice(0, 10);
+    localStorage.setItem('searchHistory', JSON.stringify(history));
+    renderHistory();
+}
+
+function renderHistory() {
+    const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    const container = document.getElementById('search-history');
+    const list = document.getElementById('history-list');
+    if (history.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'block';
+    list.innerHTML = history.map(h => 
+        `<button onclick="searchFromHistory('${h.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #21262d; border-radius: 4px; font-size: 13px; color: #c9d1d9;">${h}</button>`
+    ).join('');
+}
+
+function searchFromHistory(query) {
+    document.getElementById('search-input').value = query;
+    doSearch(1);
+}
+
+function clearHistory() {
+    if (confirm('确定清空搜索历史？')) {
+        localStorage.removeItem('searchHistory');
+        renderHistory();
+    }
+}
+
+let currentQuery = '';
+let currentPage = 1;
+let totalResults = 0;
+
+async function doSearch(page) {
+const query = document.getElementById('search-input').value.trim();
+const country = document.getElementById('country-filter').value;
+const mode = document.getElementById('search-mode').value;
+if (!query) return;
+currentQuery = query;
+saveSearchHistory(query);
+currentPage = page;
+document.getElementById('results').innerHTML = '<p style="text-align:center;">检索中...</p>';
+document.getElementById('stats-container').style.display = 'none';
+try {
+const endpoint = mode === 'online' ? '/api/search/online' : '/api/search/local';
+const body = { query, page, page_size: 20 };
+const dateFrom = document.getElementById("date-from").value;
+const dateTo = document.getElementById("date-to").value;
+if (dateFrom) body.date_from = dateFrom;
+if (dateTo) body.date_to = dateTo;
+if (country) body.country = country;
+const res = await fetch(endpoint, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(body)
+});
+const data = await res.json();
+totalResults = data.total || 0;
+document.getElementById('results-info').innerHTML = `<p style="color: #8b949e;">找到 <strong style="color: #58a6ff;">${totalResults}</strong> 条结果 | 第 ${page} 页</p>`;
+if (data.patents.length === 0) {
+document.getElementById('results').innerHTML = '<p style="text-align:center;color:#8b949e;">未找到相关专利</p><p style="text-align:center;margin-top:8px;"><a href="https://patents.google.com/?q=' + encodeURIComponent(query) + '" target="_blank" style="color:#58a6ff;">在 Google Patents 查看</a></p>';
+renderPagination(0);
+return;
+}
+let html = '';
+data.patents.forEach(p => {
+html += `<div class="patent-card">
+<h3><a href="/patent/${p.id}">${p.title || '无标题'}</a></h3>
+<div class="patent-meta">
+<span>📄 ${p.patent_number || 'N/A'}</span>
+<span>👤 ${p.applicant || 'N/A'}</span>
+<span>📅 ${p.filing_date || 'N/A'}</span>
+<span>🌍 ${p.country || 'N/A'}</span>
+</div>
+<p class="patent-abstract">${(p.abstract || '').substring(0, 200)}${(p.abstract || '').length > 200 ? '...' : ''}</p>
+</div>`;
+});
+document.getElementById('results').innerHTML = html;
+renderPagination(totalResults);
+if (page === 1 && mode === 'online') {
+loadStats();
+}
+} catch (err) {
+document.getElementById('results').innerHTML = `<p style="color:#f85149;">错误: ${err.message}</p>`;
+}
+}
+
+function renderPagination(total) {
+const totalPages = Math.ceil(total / 20);
+if (totalPages <= 1) {
+document.getElementById('pagination').innerHTML = '';
+return;
+}
+let html = '';
+if (currentPage > 1) {
+html += `<button onclick="doSearch(${currentPage - 1})">上一页</button>`;
+}
+const start = Math.max(1, currentPage - 2);
+const end = Math.min(totalPages, currentPage + 2);
+for (let i = start; i <= end; i++) {
+if (i === currentPage) {
+html += `<button class="active">${i}</button>`;
+} else {
+html += `<button onclick="doSearch(${i})">${i}</button>`;
+}
+}
+if (currentPage < totalPages) {
+html += `<button onclick="doSearch(${currentPage + 1})">下一页</button>`;
+}
+document.getElementById('pagination').innerHTML = html;
+}
+
+async function loadStats() {
+try {
+const res = await fetch('/api/search/stats', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ query: currentQuery, country: document.getElementById('country-filter').value })
+});
+const stats = await res.json();
+if (stats.by_applicant && stats.by_applicant.length > 0) {
+document.getElementById('stats-container').style.display = 'block';
+renderApplicantChart(stats.by_applicant);
+renderCountryChart(stats.by_country);
+renderYearChart(stats.by_year);
+}
+} catch (err) {
+console.error('Stats error:', err);
+}
+}
+
+function renderApplicantChart(data) {
+const maxCount = Math.max(...data.map(d => d.count));
+let html = '';
+data.forEach(d => {
+const width = (d.count / maxCount * 100).toFixed(1);
+html += `<div style="margin-bottom: 8px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+<span style="color: #c9d1d9; font-size: 13px;">${d.applicant}</span>
+<span style="color: #58a6ff; font-weight: bold;">${d.count}</span>
+</div>
+<div style="background: #21262d; height: 20px; border-radius: 4px; overflow: hidden;">
+<div style="background: linear-gradient(90deg, #58a6ff, #1f6feb); height: 100%; width: ${width}%;"></div>
+</div>
+</div>`;
+});
+document.getElementById('applicant-chart').innerHTML = html;
+}
+
+function renderCountryChart(data) {
+const maxCount = Math.max(...data.map(d => d.count));
+let html = '';
+data.forEach(d => {
+const width = (d.count / maxCount * 100).toFixed(1);
+html += `<div style="margin-bottom: 8px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+<span style="color: #c9d1d9; font-size: 13px;">${d.country}</span>
+<span style="color: #58a6ff; font-weight: bold;">${d.count}</span>
+</div>
+<div style="background: #21262d; height: 20px; border-radius: 4px; overflow: hidden;">
+<div style="background: linear-gradient(90deg, #238636, #196c2e); height: 100%; width: ${width}%;"></div>
+</div>
+</div>`;
+});
+document.getElementById('country-chart').innerHTML = html;
+}
+
+function renderYearChart(data) {
+const maxCount = Math.max(...data.map(d => d.count));
+let html = '<div style="display: flex; align-items: flex-end; gap: 4px; height: 150px;">';
+data.forEach(d => {
+const height = (d.count / maxCount * 100).toFixed(1);
+html += `<div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+<div style="color: #58a6ff; font-size: 11px; margin-bottom: 4px;">${d.count}</div>
+<div style="background: linear-gradient(180deg, #f85149, #da3633); width: 100%; height: ${height}%; border-radius: 4px 4px 0 0;"></div>
+<div style="color: #8b949e; font-size: 11px; margin-top: 4px;">${d.year}</div>
+</div>`;
+});
+html += '</div>';
+document.getElementById('year-chart').innerHTML = html;
+}
+
+async function exportResults() {
+if (!currentQuery) {
+alert('请先进行检索');
+return;
+}
+try {
+const country = document.getElementById('country-filter').value;
+const body = { query: currentQuery };
+if (country) body.country = country;
+const res = await fetch('/api/search/export', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(body)
+});
+const blob = await res.blob();
+const url = window.URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = `patents_${Date.now()}.csv`;
+a.click();
+window.URL.revokeObjectURL(url);
+} catch (err) {
+alert('导出失败: ' + err.message);
+}
+}
+
+document.getElementById('search-input').addEventListener('keydown', e => {
+if (e.key === 'Enter') doSearch(1);
+});
+
+renderHistory();
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('q')) {
+document.getElementById('search-input').value = urlParams.get('q');
+doSearch(1);
+}
+</script>
+</body>
+</html>

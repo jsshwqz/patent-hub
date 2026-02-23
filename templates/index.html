@@ -1,0 +1,82 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patent Hub - 专利智能平台</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">🔬 Patent Hub</a>
+        <div class="nav-links">
+            <a href="/search">专利检索</a>
+            <a href="/ai">AI 助手</a>
+        </div>
+    </nav>
+    <main class="hero">
+        <h1>Patent Hub</h1>
+        <p class="subtitle">个人专利智能分析平台</p>
+        <div class="search-box">
+            <input type="text" id="quick-search" placeholder="输入关键词、专利号或申请人..." autofocus>
+            <button onclick="quickSearch()">检索</button>
+        </div>
+        <div class="features">
+            <div class="feature-card">
+                <h3>🔍 智能检索</h3>
+                <p>关键词、语义、专利号多模式检索，支持全文索引</p>
+            </div>
+            <div class="feature-card">
+                <h3>📋 专利详情</h3>
+                <p>完整专利信息：说明书、权利要求、法律状态、引用关系</p>
+            </div>
+            <div class="feature-card">
+                <h3>🤖 AI 分析</h3>
+                <p>智能摘要、技术解读、权利要求分析、专利问答</p>
+            </div>
+        </div>
+        <div class="quick-actions">
+            <h3>快速抓取专利</h3>
+            <div class="fetch-box">
+                <input type="text" id="fetch-number" placeholder="输入专利号 (如 EP1234567, US10000000)">
+                <select id="fetch-source">
+                    <option value="epo">EPO (欧洲/全球)</option>
+                    <option value="uspto">USPTO (美国)</option>
+                </select>
+                <button onclick="fetchPatent()">抓取</button>
+            </div>
+            <div id="fetch-result"></div>
+        </div>
+    </main>
+    <script>
+    function quickSearch() {
+        const q = document.getElementById('quick-search').value;
+        if (q) window.location.href = '/search?q=' + encodeURIComponent(q);
+    }
+    document.getElementById('quick-search').addEventListener('keydown', e => {
+        if (e.key === 'Enter') quickSearch();
+    });
+    async function fetchPatent() {
+        const num = document.getElementById('fetch-number').value;
+        const source = document.getElementById('fetch-source').value;
+        const el = document.getElementById('fetch-result');
+        if (!num) return;
+        el.innerHTML = '<p>正在抓取...</p>';
+        try {
+            const resp = await fetch('/api/patent/fetch', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({patent_number: num, source})
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                el.innerHTML = `<p class="success">✅ 已抓取: ${data.patent.title || num}</p>
+                    <a href="/patent/${data.patent.id}">查看详情</a>`;
+            } else {
+                el.innerHTML = `<p class="error">❌ ${data.message}</p>`;
+            }
+        } catch(e) { el.innerHTML = `<p class="error">请求失败: ${e}</p>`; }
+    }
+    </script>
+</body>
+</html>

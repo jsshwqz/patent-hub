@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专利对比分析 - Patent Hub</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">🔬 Patent Hub</a>
+        <div class="nav-links">
+            <a href="/search">专利检索</a>
+            <a href="/compare">专利对比</a>
+            <a href="/ai">AI 助手</a>
+        </div>
+    </nav>
+    <main class="container">
+        <h2 style="margin-bottom:16px;">🔍 专利对比分析</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+            <div>
+                <label style="display:block;margin-bottom:8px;color:#8b949e;">专利1 ID 或专利号</label>
+                <input type="text" id="patent1" placeholder="输入专利 ID 或专利号" style="width:100%;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;">
+            </div>
+            <div>
+                <label style="display:block;margin-bottom:8px;color:#8b949e;">专利2 ID 或专利号</label>
+                <input type="text" id="patent2" placeholder="输入专利 ID 或专利号" style="width:100%;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;">
+            </div>
+        </div>
+        <button onclick="comparePatents()" style="width:100%;padding:12px;background:#58a6ff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:16px;">开始对比分析</button>
+        <div id="result" style="margin-top:20px;"></div>
+    </main>
+    <script>
+    async function comparePatents() {
+        var id1 = document.getElementById('patent1').value.trim();
+        var id2 = document.getElementById('patent2').value.trim();
+        if (!id1 || !id2) {
+            alert('请输入两个专利的 ID 或专利号');
+            return;
+        }
+        var el = document.getElementById('result');
+        el.innerHTML = '<div style="padding:20px;background:#161b22;border-radius:8px;color:#8b949e;">🤖 AI 正在对比分析中，请稍候...</div>';
+        try {
+            var resp = await fetch('/api/ai/compare', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ patent_id1: id1, patent_id2: id2 })
+            });
+            var data = await resp.json();
+            el.innerHTML = '<div style="padding:20px;background:#161b22;border-radius:8px;"><h3 style="margin:0 0 16px 0;color:#58a6ff;">�� 对比分析结果</h3><div style="color:#c9d1d9;line-height:1.8;white-space:pre-wrap;">' + data.content.replace(/\n/g, '<br>') + '</div></div>';
+        } catch(e) {
+            el.innerHTML = '<div style="padding:20px;background:#161b22;border-radius:8px;color:#f85149;">分析失败: ' + e + '</div>';
+        }
+    }
+    </script>
+</body>
+</html>

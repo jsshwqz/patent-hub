@@ -1,0 +1,229 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - Patent Hub</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">🔬 Patent Hub</a>
+        <div class="nav-links">
+            <a href="/search">专利检索</a>
+            <a href="/ai">AI 助手</a>
+        </div>
+    </nav>
+    <main class="container">
+        <div class="patent-detail">
+            <div class="detail-header">
+                <h1>{{title}}</h1>
+                <span class="patent-number-large">{{patent_number}}</span>
+                <button class="ai-btn" onclick="aiSummarize()">🤖 AI 智能分析</button>
+            </div>
+            <div id="ai-summary" class="ai-summary" style="display:none"></div>
+
+            <div class="detail-grid">
+                <div class="detail-section">
+                    <h3>基本信息</h3>
+                    <table class="info-table">
+                        <tr><td>专利号</td><td>{{patent_number}}</td></tr>
+                        <tr><td>申请人</td><td>{{applicant}}</td></tr>
+                        <tr><td>发明人</td><td>{{inventor}}</td></tr>
+                        <tr><td>申请日</td><td>{{filing_date}}</td></tr>
+                        <tr><td>公开日</td><td>{{publication_date}}</td></tr>
+                        <tr><td>授权日</td><td>{{grant_date}}</td></tr>
+                        <tr><td>国家/地区</td><td>{{country}}</td></tr>
+                        <tr><td>法律状态</td><td>{{legal_status}}</td></tr>
+                    </table>
+                </div>
+                <div class="detail-section">
+                    <h3>分类号</h3>
+                    <p><strong>IPC:</strong> {{ipc_codes}}</p>
+                    <p><strong>CPC:</strong> {{cpc_codes}}</p>
+                </div>
+            </div>
+
+            <div class="detail-tabs">
+                <button class="tab active" onclick="showTab('abstract')">摘要</button>
+                <button class="tab" onclick="showTab('claims')">权利要求</button>
+                <button class="tab" onclick="showTab('description')">说明书</button>
+                <button class="tab" onclick="showTab('ai-chat')">AI 问答</button>
+            </div>
+
+            <div id="tab-abstract" class="tab-content active">
+                <div class="content-box">{{abstract_text}}</div>
+            </div>
+            <div id="tab-claims" class="tab-content">
+                <div class="content-box"><pre>{{claims}}</pre></div>
+            </div>
+            <div id="tab-description" class="tab-content">
+                <div class="content-box"><pre>{{description}}</pre></div>
+            </div>
+            <div id="tab-ai-chat" class="tab-content">
+                <div class="chat-box" id="chat-messages"></div>
+                <div class="chat-input">
+                    <input type="text" id="chat-msg" placeholder="问我关于这个专利的任何问题...">
+                    <button onclick="sendChat()">发送</button>
+                </div>
+            </div>
+        </div>
+    
+<div style="margin-top: 40px; padding: 20px; background: #161b22; border-radius: 8px;">
+<h3 style="margin: 0 0 16px 0; color: #58a6ff;">📤 上传文档对比</h3>
+<p style="color: #8b949e; margin-bottom: 12px;">上传技术文档（txt/doc）与本专利进行 AI 对比分析</p>
+<input type="file" id="upload-file" accept=".txt,.doc,.docx" style="margin-bottom: 12px;">
+<button onclick="uploadCompare()" style="background: #238636;">开始对比</button>
+<div id="upload-result" style="margin-top: 16px;"></div>
+</div>
+
+<div id="similar-patents" style="margin-top: 40px; padding: 20px; background: #161b22; border-radius: 8px;">
+<h3 style="margin: 0 0 16px 0; color: #58a6ff;">🔍 相似专利推荐</h3>
+<div id="similar-list">加载中...</div>
+</div></main>
+    <script>
+    function showTab(name) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + name).classList.add('active');
+        event.target.classList.add('active');
+    }
+    async function aiSummarize() {
+        const el = document.getElementById('ai-summary');
+        el.style.display = 'block';
+        el.innerHTML = '🤖 AI 正在分析...';
+        try {
+            const resp = await fetch('/api/ai/summarize', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({patent_number: '{{id}}'})
+            });
+            const data = await resp.json();
+            el.innerHTML = '<h3>🤖 AI 分析结果</h3><div>' + data.content.replace(/\n/g, '<br>') + '</div>';
+        } catch(e) { el.innerHTML = '分析失败: ' + e; }
+    }
+    document.getElementById('chat-msg').addEventListener('keydown', e => {
+        if (e.key === 'Enter') sendChat();
+    });
+    async function sendChat() {
+        const input = document.getElementById('chat-msg');
+        const msg = input.value.trim();
+        if (!msg) return;
+        input.value = '';
+        const box = document.getElementById('chat-messages');
+        box.innerHTML += `<div class="msg user">${msg}</div>`;
+        box.innerHTML += `<div class="msg ai" id="ai-loading">思考中...</div>`;
+        box.scrollTop = box.scrollHeight;
+        try {
+            const resp = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: msg, patent_id: '{{id}}'})
+            });
+            const data = await resp.json();
+            document.getElementById('ai-loading').outerHTML =
+                `<div class="msg ai">${data.content.replace(/\n/g, '<br>')}</div>`;
+        } catch(e) {
+            document.getElementById('ai-loading').outerHTML =
+                `<div class="msg ai error">请求失败: ${e}</div>`;
+        }
+        box.scrollTop = box.scrollHeight;
+    }
+    // Auto-enrich: fetch full patent details if claims are empty
+    (async function() {
+        var claimsEl = document.querySelector('#tab-claims .content-box pre');
+        if (!claimsEl || claimsEl.textContent.trim().length < 5) {
+            var enrichInfo = document.createElement('div');
+            enrichInfo.className = 'ai-summary';
+            enrichInfo.style.display = 'block';
+            enrichInfo.innerHTML = '⏳ 正在从 Google Patents 获取完整专利信息...';
+            document.querySelector('.patent-detail').insertBefore(enrichInfo, document.querySelector('.detail-tabs'));
+            try {
+                var resp = await fetch('/api/patent/enrich/{{id}}');
+                var data = await resp.json();
+                if (data.status === 'ok' && data.patent) {
+                    var p = data.patent;
+                    if (p.claims) claimsEl.textContent = p.claims;
+                    var descEl = document.querySelector('#tab-description .content-box pre');
+                    if (descEl && p.description) descEl.textContent = p.description;
+                    var absEl = document.querySelector('#tab-abstract .content-box');
+                    if (absEl && p.abstract_text) absEl.textContent = p.abstract_text;
+                    // Update IPC/CPC
+                    document.querySelectorAll('.detail-section p').forEach(function(el) {
+                        if (el.innerHTML.indexOf('IPC:') >= 0 && p.ipc_codes) el.innerHTML = '<strong>IPC:</strong> ' + p.ipc_codes;
+                        if (el.innerHTML.indexOf('CPC:') >= 0 && p.cpc_codes) el.innerHTML = '<strong>CPC:</strong> ' + p.cpc_codes;
+                    });
+                    // Update legal status
+                    if (p.legal_status) {
+                        document.querySelectorAll('.info-table td').forEach(function(td, i, arr) {
+                            if (td.textContent === '法律状态' && arr[i+1]) arr[i+1].textContent = p.legal_status;
+                        });
+                    }
+                    enrichInfo.innerHTML = '✅ 已获取完整专利信息（权利要求、说明书等）';
+                    setTimeout(function() { enrichInfo.style.display = 'none'; }, 3000);
+                } else {
+                    enrichInfo.innerHTML = '⚠️ ' + (data.message || '无法获取完整信息');
+                    setTimeout(function() { enrichInfo.style.display = 'none'; }, 5000);
+                }
+            } catch(e) {
+                enrichInfo.innerHTML = '⚠️ 获取详情失败: ' + e;
+            }
+        }
+    })();
+    
+async function loadSimilar() {
+    const patentId = window.location.pathname.split('/').pop();
+    try {
+        const res = await fetch(`/api/patent/similar/${patentId}`);
+        const data = await res.json();
+        if (data.similar && data.similar.length > 0) {
+            let html = '';
+            data.similar.forEach(p => {
+                html += `<div style="padding: 12px; background: #0d1117; border-radius: 6px; margin-bottom: 12px;">
+                    <h4 style="margin: 0 0 8px 0;"><a href="/patent/${p.id}" style="color: #58a6ff;">${p.title || '无标题'}</a></h4>
+                    <div style="color: #8b949e; font-size: 13px;">
+                        <span>📄 ${p.patent_number || 'N/A'}</span> | 
+                        <span>👤 ${p.applicant || 'N/A'}</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('similar-list').innerHTML = html;
+        } else {
+            document.getElementById('similar-list').innerHTML = '<p style="color: #8b949e;">暂无相似专利</p>';
+        }
+    } catch (err) {
+        document.getElementById('similar-list').innerHTML = '<p style="color: #f85149;">加载失败</p>';
+    }
+}
+
+async function uploadCompare() {
+    const fileInput = document.getElementById('upload-file');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('请选择文件');
+        return;
+    }
+    const patentId = window.location.pathname.split('/').pop();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('patent_id', patentId);
+    document.getElementById('upload-result').innerHTML = '<p style="color: #58a6ff;">分析中...</p>';
+    try {
+        const res = await fetch('/api/upload/compare', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('upload-result').innerHTML = `<div style="padding: 16px; background: #0d1117; border-radius: 6px; white-space: pre-wrap; line-height: 1.6;">${data.analysis}</div>`;
+        } else {
+            document.getElementById('upload-result').innerHTML = `<p style="color: #f85149;">错误: ${data.error}</p>`;
+        }
+    } catch (err) {
+        document.getElementById('upload-result').innerHTML = `<p style="color: #f85149;">上传失败: ${err.message}</p>`;
+    }
+}
+
+loadSimilar();</script>
+</body>
+</html>
