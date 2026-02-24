@@ -6,83 +6,55 @@ on:
       - 'v*'
 
 jobs:
-  build-release:
-    name: Build Release
+  build:
+    name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: patent-hub
-            asset_name: patent-hub-linux-x86_64.tar.gz
+            artifact: patent-hub
+            asset: patent-hub-linux-x86_64.tar.gz
           - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: patent-hub.exe
-            asset_name: patent-hub-windows-x86_64.zip
+            artifact: patent-hub.exe
+            asset: patent-hub-windows-x86_64.zip
           - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: patent-hub
-            asset_name: patent-hub-macos-x86_64.tar.gz
-    
+            artifact: patent-hub
+            asset: patent-hub-macos-x86_64.tar.gz
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
-    
-    - name: Build release
-      run: cargo build --release
-    
-    - name: Create release directory
-      run: |
-        mkdir -p release-package
-        cp target/release/${{ matrix.artifact_name }} release-package/
-        cp -r templates static .env.example README.md LICENSE release-package/
-      shell: bash
-    
-    - name: Create start script (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        echo '@echo off' > release-package/start.bat
-        echo 'chcp 65001 >nul' >> release-package/start.bat
-        echo 'echo Starting Patent Hub...' >> release-package/start.bat
-        echo 'if not exist .env copy .env.example .env' >> release-package/start.bat
-        echo 'patent-hub.exe' >> release-package/start.bat
-        echo 'pause' >> release-package/start.bat
-      shell: bash
-    
-    - name: Create start script (Unix)
-      if: matrix.os != 'windows-latest'
-      run: |
-        echo '#!/bin/bash' > release-package/start.sh
-        echo 'echo "Starting Patent Hub..."' >> release-package/start.sh
-        echo '[ ! -f .env ] && cp .env.example .env' >> release-package/start.sh
-        echo './patent-hub' >> release-package/start.sh
-        chmod +x release-package/start.sh
-        chmod +x release-package/patent-hub
-      shell: bash
-    
-    - name: Package (Unix)
-      if: matrix.os != 'windows-latest'
-      run: |
-        cd release-package
-        tar czf ../${{ matrix.asset_name }} *
-      shell: bash
-    
-    - name: Package (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        Compress-Archive -Path release-package/* -DestinationPath ${{ matrix.asset_name }}
-      shell: pwsh
-    
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v1
-      with:
-        files: ${{ matrix.asset_name }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p pkg
+          cp target/release/${{ matrix.artifact }} pkg/
+          cp -r templates static .env.example README.md LICENSE pkg/
+          echo '#!/bin/bash' > pkg/start.sh
+          echo './patent-hub' >> pkg/start.sh
+          chmod +x pkg/start.sh pkg/patent-hub
+          cd pkg && tar czf ../${{ matrix.asset }} *
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path pkg -Force
+          Copy-Item target/release/${{ matrix.artifact }} pkg/
+          Copy-Item -Recurse templates, static pkg/
+          Copy-Item .env.example, README.md, LICENSE, start.bat pkg/
+          Compress-Archive -Path pkg/* -DestinationPath ${{ matrix.asset }}
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset }}
