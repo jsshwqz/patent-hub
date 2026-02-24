@@ -6,26 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  create-release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
   build-release:
     name: Build Release
-    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -51,34 +33,56 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        target: ${{ matrix.target }}
         override: true
     
     - name: Build release
-      run: cargo build --release --target ${{ matrix.target }}
+      run: cargo build --release
+    
+    - name: Create release directory
+      run: |
+        mkdir -p release-package
+        cp target/release/${{ matrix.artifact_name }} release-package/
+        cp -r templates static .env.example README.md LICENSE release-package/
+      shell: bash
+    
+    - name: Create start script (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo '@echo off' > release-package/start.bat
+        echo 'chcp 65001 >nul' >> release-package/start.bat
+        echo 'echo Starting Patent Hub...' >> release-package/start.bat
+        echo 'if not exist .env copy .env.example .env' >> release-package/start.bat
+        echo 'patent-hub.exe' >> release-package/start.bat
+        echo 'pause' >> release-package/start.bat
+      shell: bash
+    
+    - name: Create start script (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        echo '#!/bin/bash' > release-package/start.sh
+        echo 'echo "Starting Patent Hub..."' >> release-package/start.sh
+        echo '[ ! -f .env ] && cp .env.example .env' >> release-package/start.sh
+        echo './patent-hub' >> release-package/start.sh
+        chmod +x release-package/start.sh
+        chmod +x release-package/patent-hub
+      shell: bash
     
     - name: Package (Unix)
       if: matrix.os != 'windows-latest'
       run: |
-        cd target/${{ matrix.target }}/release
-        tar czf ../../../${{ matrix.asset_name }} ${{ matrix.artifact_name }}
-        cd ../../..
-        tar czf ${{ matrix.asset_name }} templates/ static/ .env.example
+        cd release-package
+        tar czf ../${{ matrix.asset_name }} *
+      shell: bash
     
     - name: Package (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        cd target/${{ matrix.target }}/release
-        7z a ../../../${{ matrix.asset_name }} ${{ matrix.artifact_name }}
-        cd ../../..
-        7z a ${{ matrix.asset_name }} templates/ static/ .env.example
+        Compress-Archive -Path release-package/* -DestinationPath ${{ matrix.asset_name }}
+      shell: pwsh
     
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ matrix.asset_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./${{ matrix.asset_name }}
-        asset_name: ${{ matrix.asset_name }}
-        asset_content_type: application/octet-stream
