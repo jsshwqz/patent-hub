@@ -1,0 +1,82 @@
+{
+  "info": {
+    "name": "Patent Hub API",
+    "description": "API collection for Patent Hub",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Settings API",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/settings"
+          }
+        },
+        {
+          "name": "Save SerpAPI Key",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"api_key\": \"test-serpapi-key\"}"
+            },
+            "url": "{{base_url}}/api/settings/serpapi"
+          }
+        },
+        {
+          "name": "Save AI Config",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"base_url\": \"https://open.bigmodel.cn/api/paas/v4\", \"api_key\": \"test-key\", \"model\": \"glm-4-flash\"}"
+            },
+            "url": "{{base_url}}/api/settings/ai"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search API",
+      "item": [
+        {
+          "name": "Search Patents",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"artificial intelligence\", \"limit\": 10}"
+            },
+            "url": "{{base_url}}/api/search"
+          }
+        },
+        {
+          "name": "Online Search",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"machine learning\", \"country\": \"CN\"}"
+            },
+            "url": "{{base_url}}/api/search/online"
+          }
+        }
+      ]
+    }
+  ]
+}

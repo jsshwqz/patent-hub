@@ -567,3 +567,87 @@ pub async fn api_upload_compare(
 
 
 
+
+// Settings page
+pub async fn settings_page() -> Html<String> { 
+    Html(include_str!("../templates/settings.html").to_string()) 
+}
+
+// Get current settings
+pub async fn api_get_settings() -> Json<serde_json::Value> {
+    Json(json!({
+        "serpapi_key": std::env::var("SERPAPI_KEY").unwrap_or_default(),
+        "ai_base_url": std::env::var("AI_BASE_URL").unwrap_or_default(),
+        "ai_api_key": std::env::var("AI_API_KEY").unwrap_or_default(),
+        "ai_model": std::env::var("AI_MODEL").unwrap_or_default()
+    }))
+}
+
+// Save SerpAPI key
+pub async fn api_save_serpapi(Json(req): Json<serde_json::Value>) -> Json<serde_json::Value> {
+    if let Some(key) = req["api_key"].as_str() {
+        if let Err(e) = update_env_file("SERPAPI_KEY", key) {
+            return Json(json!({"status": "error", "message": e.to_string()}));
+        }
+        std::env::set_var("SERPAPI_KEY", key);
+        Json(json!({"status": "ok"}))
+    } else {
+        Json(json!({"status": "error", "message": "Invalid API key"}))
+    }
+}
+
+// Save AI config
+pub async fn api_save_ai(Json(req): Json<serde_json::Value>) -> Json<serde_json::Value> {
+    let base_url = req["base_url"].as_str().unwrap_or("");
+    let api_key = req["api_key"].as_str().unwrap_or("");
+    let model = req["model"].as_str().unwrap_or("");
+    
+    if base_url.is_empty() || api_key.is_empty() || model.is_empty() {
+        return Json(json!({"status": "error", "message": "All fields required"}));
+    }
+    
+    if let Err(e) = update_env_file("AI_BASE_URL", base_url) {
+        return Json(json!({"status": "error", "message": e.to_string()}));
+    }
+    if let Err(e) = update_env_file("AI_API_KEY", api_key) {
+        return Json(json!({"status": "error", "message": e.to_string()}));
+    }
+    if let Err(e) = update_env_file("AI_MODEL", model) {
+        return Json(json!({"status": "error", "message": e.to_string()}));
+    }
+    
+    std::env::set_var("AI_BASE_URL", base_url);
+    std::env::set_var("AI_API_KEY", api_key);
+    std::env::set_var("AI_MODEL", model);
+    
+    Json(json!({"status": "ok"}))
+}
+
+// Helper function to update .env file
+fn update_env_file(key: &str, value: &str) -> Result<(), String> {
+    use std::fs;
+    use std::io::Write;
+    
+    let env_path = ".env";
+    let content = fs::read_to_string(env_path).unwrap_or_default();
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+    
+    // Find and update or append
+    let mut found = false;
+    for line in &mut lines {
+        if line.starts_with(&format!("{}=", key)) {
+            *line = format!("{}={}", key, value);
+            found = true;
+            break;
+        }
+    }
+    
+    if !found {
+        lines.push(format!("{}={}", key, value));
+    }
+    
+    let mut file = fs::File::create(env_path).map_err(|e| e.to_string())?;
+    file.write_all(lines.join("\n").as_bytes()).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
