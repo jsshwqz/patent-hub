@@ -47,7 +47,9 @@ jobs:
           mkdir -p pkg
           cp target/release/${{ matrix.artifact }} pkg/
           cp -r templates static .env.example README.md LICENSE pkg/
+          # Create start script for release package
           echo '#!/bin/bash' > pkg/start.sh
+          echo 'cd "$(dirname "$0")"' >> pkg/start.sh
           echo './patent-hub' >> pkg/start.sh
           chmod +x pkg/start.sh pkg/patent-hub
           cd pkg && tar czf ../${{ matrix.asset }} *
@@ -59,7 +61,9 @@ jobs:
           New-Item -ItemType Directory -Path pkg -Force
           Copy-Item target/release/${{ matrix.artifact }} pkg/
           Copy-Item -Recurse templates, static pkg/
-          Copy-Item .env.example, README.md, LICENSE, start.bat pkg/
+          Copy-Item .env.example, README.md, LICENSE pkg/
+          # Use start-release.bat for release package
+          Copy-Item start-release.bat pkg/start.bat
           Compress-Archive -Path pkg/* -DestinationPath ${{ matrix.asset }}
 
       - name: Upload Release Asset
