@@ -1,6 +1,6 @@
 [package]
 name = "patent-hub"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 description = "Patent search, analysis and management platform with AI integration"
