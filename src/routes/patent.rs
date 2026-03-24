@@ -33,7 +33,9 @@ pub async fn api_enrich_patent(
         Ok(Some(p)) => p,
         _ => return Json(json!({"status":"error","message":"Patent not found"})),
     };
-    if patent.claims.len() > 10 {
+    // Only skip if we have claims AND images already
+    let has_images = patent.images.len() > 5;
+    if patent.claims.len() > 50 && has_images {
         return Json(json!({"status":"ok","message":"Already enriched","patent":patent}));
     }
 
@@ -42,12 +44,8 @@ pub async fn api_enrich_patent(
         return Json(json!({"status":"error","message":"SERPAPI_KEY not configured"}));
     }
 
-    let lang = if patent.country == "CN" || patent.patent_number.starts_with("CN") {
-        "zh"
-    } else {
-        "en"
-    };
-    let patent_id_param = format!("patent/{}/{}", patent.patent_number, lang);
+    // SerpAPI Google Patents Details only supports "en" - "zh" returns no results
+    let patent_id_param = format!("patent/{}/en", patent.patent_number);
     let url = format!(
         "https://serpapi.com/search.json?engine=google_patents_details&patent_id={}&api_key={}",
         urlencoding::encode(&patent_id_param),
@@ -75,7 +73,29 @@ pub async fn api_enrich_patent(
                                 .join("\n\n")
                         })
                         .unwrap_or_default();
-                    let description = json["description"].as_str().unwrap_or("").to_string();
+                    let mut description = json["description"].as_str().unwrap_or("").to_string();
+                    // SerpAPI returns description_link for long patents - try to fetch it
+                    if description.is_empty() {
+                        if let Some(desc_link) = json["description_link"].as_str() {
+                            println!("[ENRICH] Fetching description from link: {}", desc_link);
+                            if let Ok(desc_resp) = client.get(desc_link)
+                                .header("User-Agent", "Mozilla/5.0")
+                                .send().await {
+                                if let Ok(desc_text) = desc_resp.text().await {
+                                    // The link returns HTML, extract text content
+                                    let clean = desc_text
+                                        .replace("<br>", "\n")
+                                        .replace("<br/>", "\n")
+                                        .replace("<p>", "\n")
+                                        .replace("</p>", "\n");
+                                    // Strip remaining HTML tags
+                                    let re = regex::Regex::new(r"<[^>]+>").unwrap_or_else(|_| regex::Regex::new(r"$^").unwrap());
+                                    description = re.replace_all(&clean, "").trim().to_string();
+                                    println!("[ENRICH] Got description len={}", description.len());
+                                }
+                            }
+                        }
+                    }
                     let ipc_codes = json["classifications"]
                         .as_array()
                         .map(|a| {
