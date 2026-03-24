@@ -96,10 +96,12 @@
         <div class="nav-links">
             <a href="/">首页</a>
             <a href="/search">专利检索</a>
+            <a href="/idea">创意验证</a>
             <a href="/compare">专利对比</a>
             <a href="/ai">AI 助手</a>
             <a href="/settings" class="active">设置</a>
         </div>
+        <button onclick="goBack()" class="back-btn" id="back-btn" style="display:none;margin-left:auto;background:#21262d;color:#c9d1d9;border:1px solid #30363d;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">← 返回</button>
     </nav>
 
     <div class="settings-container">
@@ -153,6 +155,15 @@
         </div>
 
         <div class="setting-group">
+            <h3>🔄 备用 AI（主 AI 失败时自动切换）</h3>
+            <p>配置备用 AI 服务商。当主 AI 不可用时自动降级到备用。支持最多 5 个备用。</p>
+            <div id="fallback-list"></div>
+            <button class="btn-save" style="background:#21262d;margin-top:8px;" onclick="addFallbackRow()">+ 添加备用 AI</button>
+            <button class="btn-save" onclick="saveFallbacks()">保存备用 AI 配置</button>
+            <div id="fallback-status" class="status-message"></div>
+        </div>
+
+        <div class="setting-group">
             <h3>ℹ️ 当前配置状态</h3>
             <p id="config-status">加载中...</p>
         </div>
@@ -160,7 +171,19 @@
 
     <script>
         // 页面加载时获取当前配置
+        let returnUrl = ''; // 记录返回地址
+        
         window.onload = async function() {
+            // 从 URL 参数获取返回地址
+            const urlParams = new URLSearchParams(window.location.search);
+            returnUrl = urlParams.get('from') || document.referrer || '';
+            
+            // 显示/隐藏返回按钮
+            const backBtn = document.getElementById('back-btn');
+            if (returnUrl && !returnUrl.includes('/settings')) {
+                backBtn.style.display = 'block';
+            }
+            
             try {
                 const res = await fetch('/api/settings');
                 if (res.ok) {
@@ -169,13 +192,22 @@
                     document.getElementById('ai-base-url').value = config.ai_base_url || '';
                     document.getElementById('ai-api-key').value = config.ai_api_key || '';
                     document.getElementById('ai-model').value = config.ai_model || '';
-                    
+
                     updateConfigStatus(config);
                 }
             } catch (e) {
                 console.error('Failed to load config:', e);
             }
         };
+        
+        // 返回上一页
+        function goBack() {
+            if (returnUrl && !returnUrl.includes('/settings')) {
+                window.location.href = returnUrl;
+            } else {
+                window.history.back();
+            }
+        }
 
         function updateConfigStatus(config) {
             const status = [];
@@ -227,21 +259,27 @@
         async function saveSerpApiKey() {
             const key = document.getElementById('serpapi-key').value.trim();
             const statusEl = document.getElementById('serpapi-status');
-            
+
             if (!key) {
                 showStatus(statusEl, 'error', '请输入 API Key');
                 return;
             }
-            
+
             try {
                 const res = await fetch('/api/settings/serpapi', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ api_key: key })
                 });
-                
+
                 if (res.ok) {
-                    showStatus(statusEl, 'success', '✅ SerpAPI 配置已保存！');
+                    showStatus(statusEl, 'success', '✅ SerpAPI 配置已保存！3 秒后返回...');
+                    // 如果有返回地址，3 秒后自动返回
+                    if (returnUrl && !returnUrl.includes('/settings')) {
+                        setTimeout(() => {
+                            window.location.href = returnUrl;
+                        }, 3000);
+                    }
                 } else {
                     showStatus(statusEl, 'error', '保存失败，请重试');
                 }
@@ -255,21 +293,27 @@
             const apiKey = document.getElementById('ai-api-key').value.trim();
             const model = document.getElementById('ai-model').value.trim();
             const statusEl = document.getElementById('ai-status');
-            
+
             if (!baseUrl || !apiKey || !model) {
                 showStatus(statusEl, 'error', '请填写完整的 AI 配置');
                 return;
             }
-            
+
             try {
                 const res = await fetch('/api/settings/ai', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model: model })
                 });
-                
+
                 if (res.ok) {
-                    showStatus(statusEl, 'success', '✅ AI 配置已保存！');
+                    showStatus(statusEl, 'success', '✅ AI 配置已保存！3 秒后返回...');
+                    // 如果有返回地址，3 秒后自动返回
+                    if (returnUrl && !returnUrl.includes('/settings')) {
+                        setTimeout(() => {
+                            window.location.href = returnUrl;
+                        }, 3000);
+                    }
                 } else {
                     showStatus(statusEl, 'error', '保存失败，请重试');
                 }
@@ -285,6 +329,77 @@
             setTimeout(() => {
                 element.style.display = 'none';
             }, 3000);
+        }
+
+        // ── Fallback AI Management ──
+        var fallbackCount = 0;
+        function addFallbackRow(name, url, key, model) {
+            if (fallbackCount >= 5) return;
+            fallbackCount++;
+            var i = fallbackCount;
+            var container = document.getElementById('fallback-list');
+            var presets = {
+                'openrouter': { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-2.0-flash-exp:free' },
+                'gemini': { name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-2.0-flash' },
+                'openai': { name: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' },
+                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }
+            };
+            var row = document.createElement('div');
+            row.style.cssText = 'padding:12px;margin:8px 0;background:#0d1117;border:1px solid #30363d;border-radius:6px;';
+            row.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+                + '<strong style="color:#58a6ff;">备用 AI #' + i + '</strong>'
+                + '<button onclick="this.parentElement.parentElement.remove();fallbackCount--;" style="background:#da3633;padding:2px 8px;font-size:0.8em;">删除</button></div>'
+                + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">服务商预设</label>'
+                + '<select onchange="applyPreset(this,' + i + ')" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;">'
+                + '<option value="">自定义</option><option value="openrouter">OpenRouter</option><option value="gemini">Google Gemini</option><option value="openai">OpenAI</option><option value="nvidia">NVIDIA</option><option value="deepseek">DeepSeek</option></select></div>'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">名称</label><input type="text" id="fb-name-' + i + '" value="' + (name||'') + '" placeholder="OpenRouter" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">Base URL</label><input type="text" id="fb-url-' + i + '" value="' + (url||'') + '" placeholder="https://..." style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">API Key</label><input type="text" id="fb-key-' + i + '" value="' + (key||'') + '" placeholder="sk-..." style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '<div style="grid-column:span 2;"><label style="font-size:0.8em;color:#8b949e;">模型</label><input type="text" id="fb-model-' + i + '" value="' + (model||'') + '" placeholder="model-name" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '</div>';
+            container.appendChild(row);
+        }
+        window.applyPreset = function(sel, idx) {
+            var presets = {
+                'openrouter': { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-2.0-flash-exp:free' },
+                'gemini': { name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-2.0-flash' },
+                'openai': { name: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' },
+                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }
+            };
+            var p = presets[sel.value];
+            if (p) {
+                document.getElementById('fb-name-' + idx).value = p.name;
+                document.getElementById('fb-url-' + idx).value = p.url;
+                document.getElementById('fb-model-' + idx).value = p.model;
+            }
+        };
+        async function saveFallbacks() {
+            var statusEl = document.getElementById('fallback-status');
+            var fallbacks = [];
+            for (var i = 1; i <= fallbackCount; i++) {
+                var nameEl = document.getElementById('fb-name-' + i);
+                if (!nameEl) continue;
+                fallbacks.push({
+                    name: nameEl.value,
+                    url: document.getElementById('fb-url-' + i).value,
+                    key: document.getElementById('fb-key-' + i).value,
+                    model: document.getElementById('fb-model-' + i).value
+                });
+            }
+            try {
+                var resp = await fetch('/api/settings/fallbacks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fallbacks: fallbacks })
+                });
+                var data = await resp.json();
+                showStatus(statusEl, data.status === 'ok' ? 'success' : 'error', data.message || '已保存');
+            } catch(e) {
+                showStatus(statusEl, 'error', '保存失败: ' + e.message);
+            }
         }
     </script>
 </body>

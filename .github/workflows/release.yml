@@ -10,63 +10,134 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.os }}
+    name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            artifact: patent-hub
+            target: x86_64-unknown-linux-gnu
             asset: patent-hub-linux-x86_64.tar.gz
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            asset: patent-hub-linux-aarch64.tar.gz
+            cross: true
           - os: windows-latest
-            artifact: patent-hub.exe
+            target: x86_64-pc-windows-msvc
             asset: patent-hub-windows-x86_64.zip
           - os: macos-latest
-            artifact: patent-hub
+            target: x86_64-apple-darwin
             asset: patent-hub-macos-x86_64.tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: patent-hub-macos-aarch64.tar.gz
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get version
-        id: version
-        shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
 
-      - name: Build
-        run: cargo build --release
+      # cross 用于 Linux aarch64 交叉编译
+      - name: Install cross
+        if: matrix.cross == true
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
+      - name: Build (native)
+        if: matrix.cross != true
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.cross == true
+        run: cross build --release --target ${{ matrix.target }}
+
+      # ── Package Unix ──────────────────────────────────────────────────────
       - name: Package (Unix)
-        if: matrix.os != 'windows-latest'
+        if: runner.os != 'Windows'
         shell: bash
         run: |
+          BIN_DIR="target/${{ matrix.target }}/release"
           mkdir -p pkg
-          cp target/release/${{ matrix.artifact }} pkg/
-          cp -r templates static .env.example README.md LICENSE pkg/
-          # Create start script for release package
-          echo '#!/bin/bash' > pkg/start.sh
-          echo 'cd "$(dirname "$0")"' >> pkg/start.sh
-          echo './patent-hub' >> pkg/start.sh
-          chmod +x pkg/start.sh pkg/patent-hub
-          cd pkg && tar czf ../${{ matrix.asset }} *
+          cp "$BIN_DIR/patent-hub"    pkg/
+          cp "$BIN_DIR/skill-router"  pkg/
+          cp -r templates static .env.example pkg/
+          [ -f README.md ] && cp README.md pkg/ || true
+          [ -f LICENSE ] && cp LICENSE pkg/ || true
 
+          cat > pkg/start.sh << 'EOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          ./patent-hub
+          EOF
+          chmod +x pkg/start.sh pkg/patent-hub pkg/skill-router
+
+          cat > pkg/USAGE.txt << 'EOF'
+          # Patent Hub + Skill Router
+
+          ## Start web server
+            ./start.sh
+            # or: ./patent-hub
+
+          ## Use skill-router CLI
+            ./skill-router "parse this yaml"
+            ./skill-router -c text_summarize -x '{"text":"hello world"}' summarize
+            ./skill-router --gc --days 30
+
+          ## Configure
+            cp .env.example .env
+            # Edit .env with your API keys
+          EOF
+
+          cd pkg && tar czf "../${{ matrix.asset }}" .
+
+      # ── Package Windows ───────────────────────────────────────────────────
       - name: Package (Windows)
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path pkg -Force
-          Copy-Item target/release/${{ matrix.artifact }} pkg/
-          Copy-Item -Recurse templates, static pkg/
-          Copy-Item .env.example, README.md, LICENSE pkg/
-          # Use start-release.bat for release package
-          Copy-Item start-release.bat pkg/start.bat
-          Compress-Archive -Path pkg/* -DestinationPath ${{ matrix.asset }}
+          $binDir = "target\${{ matrix.target }}\release"
+          New-Item -ItemType Directory -Path pkg -Force | Out-Null
+          Copy-Item "$binDir\patent-hub.exe"   pkg\
+          Copy-Item "$binDir\skill-router.exe" pkg\
+          Copy-Item -Recurse templates, static pkg\
+          Copy-Item .env.example pkg\
+          if (Test-Path README.md) { Copy-Item README.md pkg\ }
+          if (Test-Path LICENSE) { Copy-Item LICENSE pkg\ }
 
-      - name: Upload Release Asset
+          @'
+          @echo off
+          cd /d "%~dp0"
+          patent-hub.exe
+          '@ | Set-Content pkg\start.bat -Encoding ASCII
+
+          @'
+          # Patent Hub + Skill Router
+
+          ## Start web server
+            start.bat
+            or: patent-hub.exe
+
+          ## Use skill-router CLI
+            skill-router.exe "parse this yaml"
+            skill-router.exe -c text_summarize -x "{\"text\":\"hello world\"}" summarize
+            skill-router.exe --gc --days 30
+
+          ## Configure
+            copy .env.example .env
+            Edit .env with your API keys
+          '@ | Set-Content pkg\USAGE.txt -Encoding UTF8
+
+          Compress-Archive -Path pkg\* -DestinationPath "${{ matrix.asset }}" -Force
+
+      # ── Upload ────────────────────────────────────────────────────────────
+      - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.asset }}
+          generate_release_notes: true

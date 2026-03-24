@@ -6,300 +6,294 @@
 http://127.0.0.1:3000
 ```
 
-## Endpoints / 接口
+## Notes / 说明
 
-### 1. Search Patents / 搜索专利
+- 搜索历史为前端 `localStorage`，没有 `/api/search/history` 接口。
+- 详情页是页面路由 `GET /patent/:id`，不是 JSON API。
+- AI 分析相关接口均为 OpenAI 兼容下游能力封装。
+
+---
+
+## Page Routes / 页面路由
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | 首页 |
+| GET | `/search` | 搜索页 |
+| GET | `/compare` | 专利对比页 |
+| GET | `/ai` | AI 助手页 |
+| GET | `/settings` | 设置页 |
+| GET | `/patent/:id` | 专利详情页 |
+| GET | `/test` | 调试测试页 |
+| GET | `/import` | 样例数据导入页 |
+
+---
+
+## Search APIs / 搜索接口
+
+### 1) Local Search / 本地搜索
 
 **POST** `/api/search`
 
-Search patents online or in local database.
-
-#### Request Body
+Request:
 
 ```json
 {
-  "query": "artificial intelligence",
-  "mode": "online",
-  "country": "US",
+  "query": "人工智能",
+  "page": 1,
+  "page_size": 20,
+  "country": "CN",
   "date_from": "2020-01-01",
-  "date_to": "2024-12-31"
+  "date_to": "2024-12-31",
+  "search_type": "inventor",
+  "sort_by": "relevance"
 }
 ```
 
-Parameters:
-- `query` (string, required): Search keywords / 搜索关键词
-- `mode` (string, required): "online" or "local" / "在线" 或 "本地"
-- `country` (string, optional): Country code (US, CN, EP, etc.) / 国家代码
-- `date_from` (string, optional): Start date (YYYY-MM-DD) / 起始日期
-- `date_to` (string, optional): End date (YYYY-MM-DD) / 结束日期
+Fields:
+- `query` (required)
+- `page` (optional, default `1`)
+- `page_size` (optional, default `20`)
+- `country` (optional)
+- `date_from`, `date_to` (optional, `YYYY-MM-DD`)
+- `search_type` (optional): `applicant | inventor | patent_number | keyword`
+- `sort_by` (optional): `relevance | new | old`
 
-#### Response
+Response:
 
 ```json
 {
   "patents": [
     {
       "id": "uuid",
-      "patent_id": "US1234567B2",
-      "title": "Method and system for...",
-      "abstract": "This invention relates to...",
-      "applicant": "Company Name",
-      "inventor": "John Doe",
-      "filing_date": "2020-01-15",
-      "publication_date": "2022-03-20",
-      "country": "US",
-      "url": "https://patents.google.com/patent/US1234567B2"
+      "patent_number": "CN1234567A",
+      "title": "示例标题",
+      "abstract_text": "摘要...",
+      "applicant": "示例申请人",
+      "inventor": "示例发明人",
+      "filing_date": "2024-01-01",
+      "country": "CN",
+      "relevance_score": 92.5,
+      "score_source": "发明人包含匹配"
     }
   ],
-  "total": 100
+  "total": 123,
+  "page": 1,
+  "page_size": 20,
+  "search_type": "inventor"
 }
 ```
 
-### 2. Get Patent Details / 获取专利详情
+### 2) Online Search / 在线搜索
 
-**GET** `/api/patent/:id`
+**POST** `/api/search/online`
 
-Get detailed information about a specific patent.
+Request 与 `/api/search` 相同。优先走 SerpAPI，失败自动回落本地搜索。
 
-#### Parameters
-
-- `id` (path): Patent UUID / 专利 UUID
-
-#### Response
+Response（SerpAPI 命中）:
 
 ```json
 {
-  "id": "uuid",
-  "patent_id": "US1234567B2",
-  "title": "Method and system for...",
-  "abstract": "This invention relates to...",
-  "applicant": "Company Name",
-  "inventor": "John Doe",
-  "filing_date": "2020-01-15",
-  "publication_date": "2022-03-20",
-  "country": "US",
-  "url": "https://patents.google.com/patent/US1234567B2",
-  "claims": "1. A method comprising...",
-  "description": "Detailed description..."
+  "patents": [],
+  "total": 0,
+  "page": 1,
+  "page_size": 10,
+  "source": "serpapi"
 }
 ```
 
-### 3. AI Analysis / AI 分析
-
-**POST** `/api/ai/analyze`
-
-Analyze a patent using AI.
-
-#### Request Body
+Response（本地回落）:
 
 ```json
 {
-  "patent_id": "uuid",
-  "analysis_type": "summary"
+  "patents": [],
+  "total": 0,
+  "page": 1,
+  "page_size": 20,
+  "source": "local"
 }
 ```
 
-Parameters:
-- `patent_id` (string, required): Patent UUID / 专利 UUID
-- `analysis_type` (string, optional): "summary", "technical", "claims" / 分析类型
+### 3) Stats / 统计
 
-#### Response
+**POST** `/api/search/stats`
+
+Request 与 `/api/search` 相同（用于保持筛选一致）。
+
+Response:
 
 ```json
 {
-  "analysis": "This patent describes a novel approach to...",
-  "key_points": [
-    "Main innovation: ...",
-    "Technical advantage: ...",
-    "Potential applications: ..."
+  "total": 100,
+  "applicants": [["公司A", 20], ["公司B", 15]],
+  "countries": [["CN", 50], ["US", 30]],
+  "years": [["2020", 10], ["2021", 20]]
+}
+```
+
+### 4) Export CSV / 导出 CSV
+
+**POST** `/api/search/export`
+
+Request 与 `/api/search` 相同，返回 `text/csv` 文件流。
+
+### 5) AI Analyze Search Results / AI 分析搜索结果
+
+**POST** `/api/search/analyze`
+
+Request:
+
+```json
+{
+  "query": "机器视觉",
+  "patents": [
+    { "title": "A", "abstract_text": "..." },
+    { "title": "B", "abstract_text": "..." }
   ]
 }
 ```
 
-### 4. Compare Patents / 对比专利
+Response:
+
+```json
+{
+  "status": "ok",
+  "analysis": {}
+}
+```
+
+---
+
+## Patent APIs / 专利接口
+
+### 1) Fetch Patent by Number / 按专利号抓取
+
+**POST** `/api/patent/fetch`
+
+Request:
+
+```json
+{
+  "patent_number": "EP1234567",
+  "source": "epo"
+}
+```
+
+`source`: `epo | uspto`（默认 `epo`）
+
+### 2) Import Patents / 批量导入
+
+**POST** `/api/patents/import`
+
+Request:
+
+```json
+{
+  "patents": []
+}
+```
+
+### 3) Enrich Patent / 丰富专利信息
+
+**GET** `/api/patent/enrich/:id`
+
+### 4) Similar Patents / 相似专利推荐
+
+**GET** `/api/patent/similar/:id`
+
+### 5) Upload Compare / 上传文档对比
+
+**POST** `/api/upload/compare` (`multipart/form-data`)
+
+Fields:
+- `file` (`.txt` 等文本文件)
+- `patent_id`
+
+---
+
+## AI APIs / AI 接口
+
+### 1) Chat / 对话
+
+**POST** `/api/ai/chat`
+
+```json
+{
+  "message": "请分析该专利创新点",
+  "patent_id": "uuid-optional"
+}
+```
+
+### 2) Summarize / 摘要
+
+**POST** `/api/ai/summarize`
+
+```json
+{
+  "patent_number": "CN1234567A"
+}
+```
+
+### 3) Compare / 对比
 
 **POST** `/api/ai/compare`
 
-Compare two patents using AI.
-
-#### Request Body
-
 ```json
 {
-  "patent_id_1": "uuid1",
-  "patent_id_2": "uuid2"
+  "patent_id1": "uuid-or-number-1",
+  "patent_id2": "uuid-or-number-2"
 }
 ```
 
-Parameters:
-- `patent_id_1` (string, required): First patent UUID / 第一个专利 UUID
-- `patent_id_2` (string, required): Second patent UUID / 第二个专利 UUID
+---
 
-#### Response
+## Settings APIs / 配置接口
 
-```json
-{
-  "comparison": {
-    "similarities": [
-      "Both patents address...",
-      "Similar technical approach..."
-    ],
-    "differences": [
-      "Patent 1 focuses on...",
-      "Patent 2 uses a different method..."
-    ],
-    "conclusion": "Overall assessment..."
-  }
-}
-```
+### 1) Get Settings / 读取配置
 
-### 5. Similar Patents / 相似专利
+**GET** `/api/settings`
 
-**GET** `/api/patent/:id/similar`
-
-Get similar patents based on keywords.
-
-#### Parameters
-
-- `id` (path): Patent UUID / 专利 UUID
-- `limit` (query, optional): Number of results (default: 5) / 结果数量
-
-#### Response
+返回脱敏密钥与配置状态:
 
 ```json
 {
-  "similar_patents": [
-    {
-      "id": "uuid",
-      "patent_id": "US7654321B2",
-      "title": "Related invention...",
-      "similarity_score": 0.85
-    }
-  ]
+  "serpapi_key": "abcd****wxyz",
+  "serpapi_key_configured": true,
+  "ai_base_url": "https://open.bigmodel.cn/api/paas/v4",
+  "ai_api_key": "abcd****wxyz",
+  "ai_api_key_configured": true,
+  "ai_model": "glm-4-flash"
 }
 ```
 
-### 6. Search History / 搜索历史
+### 2) Save SerpAPI / 保存 SerpAPI Key
 
-**GET** `/api/search/history`
+**POST** `/api/settings/serpapi`
 
-Get recent search history.
+```json
+{ "api_key": "your-serpapi-key" }
+```
 
-#### Parameters
+### 3) Save AI Config / 保存 AI 配置
 
-- `limit` (query, optional): Number of records (default: 10) / 记录数量
-
-#### Response
+**POST** `/api/settings/ai`
 
 ```json
 {
-  "history": [
-    {
-      "id": 1,
-      "query": "artificial intelligence",
-      "timestamp": "2024-12-24T10:30:00Z",
-      "result_count": 100
-    }
-  ]
+  "base_url": "https://open.bigmodel.cn/api/paas/v4",
+  "api_key": "your-ai-key",
+  "model": "glm-4-flash"
 }
 ```
 
-### 7. Export Data / 导出数据
+---
 
-**POST** `/api/export`
-
-Export search results to CSV.
-
-#### Request Body
+## Common Errors / 通用错误
 
 ```json
 {
-  "patent_ids": ["uuid1", "uuid2", "uuid3"]
+  "status": "error",
+  "message": "..."
 }
 ```
 
-Parameters:
-- `patent_ids` (array, required): List of patent UUIDs / 专利 UUID 列表
-
-#### Response
-
-Returns CSV file with headers:
-```
-Patent ID,Title,Applicant,Inventor,Filing Date,Publication Date,Country,URL
-```
-
-### 8. Statistics / 统计
-
-**GET** `/api/stats`
-
-Get statistics for current search results.
-
-#### Parameters
-
-- `query` (query, optional): Filter by search query / 按搜索查询过滤
-
-#### Response
-
-```json
-{
-  "total_patents": 1000,
-  "top_applicants": [
-    {"name": "Company A", "count": 150},
-    {"name": "Company B", "count": 120}
-  ],
-  "country_distribution": [
-    {"country": "US", "count": 500},
-    {"country": "CN", "count": 300}
-  ],
-  "yearly_trend": [
-    {"year": 2020, "count": 100},
-    {"year": 2021, "count": 150}
-  ]
-}
-```
-
-## Error Responses / 错误响应
-
-All endpoints may return error responses:
-
-```json
-{
-  "error": "Error message",
-  "code": "ERROR_CODE"
-}
-```
-
-Common error codes:
-- `INVALID_REQUEST`: Invalid request parameters / 无效请求参数
-- `NOT_FOUND`: Resource not found / 资源未找到
-- `API_ERROR`: External API error / 外部 API 错误
-- `DATABASE_ERROR`: Database operation failed / 数据库操作失败
-- `AI_ERROR`: AI service error / AI 服务错误
-
-## Rate Limiting / 速率限制
-
-Currently no rate limiting is implemented. For production use, consider:
-- Implementing rate limiting per IP
-- Using API keys for authentication
-- Setting up request quotas
-
-## Authentication / 认证
-
-Currently no authentication is required. For production use, consider:
-- API key authentication
-- OAuth 2.0
-- JWT tokens
-
-## CORS / 跨域
-
-CORS is enabled for all origins in development. For production:
-- Restrict allowed origins
-- Configure allowed methods
-- Set appropriate headers
-
-## WebSocket Support / WebSocket 支持
-
-Not currently implemented. Future consideration for:
-- Real-time search updates
-- Live AI analysis streaming
-- Collaborative features

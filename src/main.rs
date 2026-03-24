@@ -1,109 +1,131 @@
-﻿mod db;
 mod ai;
+mod db;
+mod error;
 mod patent;
 mod routes;
 
-use axum::{Router, routing::get, routing::post, response::Html};
+use axum::{
+    extract::DefaultBodyLimit,
+    http::HeaderValue,
+    routing::{get, post},
+    Router,
+};
 use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
 use tower_http::services::ServeDir;
-
-/// Try to start Ollama if not already running
-fn ensure_ollama() {
-    let base = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
-    if !base.contains("localhost:11434") && !base.contains("127.0.0.1:11434") {
-        return; // Using a remote AI service, skip Ollama
-    }
-    // Check if Ollama is already running
-    match std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:11434".parse().unwrap(),
-        std::time::Duration::from_secs(1),
-    ) {
-        Ok(_) => println!("Ollama is already running"),
-        Err(_) => {
-            println!("Starting Ollama service...");
-            match std::process::Command::new("ollama")
-                .arg("serve")
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn()
-            {
-                Ok(_) => {
-                    // Wait a moment for Ollama to start
-                    std::thread::sleep(std::time::Duration::from_secs(2));
-                    println!("Ollama service started");
-                }
-                Err(e) => println!("Could not start Ollama: {} (install from https://ollama.com)", e),
-            }
-        }
-    }
-}
+use tower_http::set_header::SetResponseHeaderLayer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Load .env file and override any existing environment variables
     let _ = dotenvy::dotenv_override();
     tracing_subscriber::fmt::init();
-    ensure_ollama();
+
     let db = db::Database::init("patent_hub.db")?;
-    let state = routes::AppState { 
-        db: std::sync::Arc::new(db),
+    let config = routes::AppConfig::from_env();
+    let state = routes::AppState {
+        db: Arc::new(db),
+        config: Arc::new(RwLock::new(config)),
     };
+
     let app = Router::new()
+        // Page routes
         .route("/", get(routes::index_page))
         .route("/search", get(routes::search_page))
         .route("/patent/:id", get(routes::patent_detail_page))
         .route("/ai", get(routes::ai_page))
         .route("/compare", get(routes::compare_page))
+        .route("/idea", get(routes::idea_page))
         .route("/settings", get(routes::settings_page))
-        .route("/test", get(|| async { Html(include_str!("../templates/test.html").to_string()) }))
-        .route("/import", get(|| async { Html(std::fs::read_to_string("templates/import_sample_data.html").unwrap_or_default()) }))
+        // Settings API
         .route("/api/settings", get(routes::api_get_settings))
         .route("/api/settings/serpapi", post(routes::api_save_serpapi))
         .route("/api/settings/ai", post(routes::api_save_ai))
+        .route("/api/settings/fallbacks", post(routes::api_save_fallbacks))
+        // Search API
         .route("/api/search", post(routes::api_search))
         .route("/api/search/stats", post(routes::api_search_stats))
         .route("/api/search/export", post(routes::api_export_csv))
+        .route("/api/search/export/xlsx", post(routes::api_export_xlsx))
+        .route("/api/search/online", post(routes::api_search_online))
+        .route("/api/search/analyze", post(routes::api_ai_analyze_results))
+        // Patent API
         .route("/api/patent/fetch", post(routes::api_fetch_patent))
+        .route("/api/patent/enrich/:id", get(routes::api_enrich_patent))
+        .route("/api/patent/enrich-free/:id", get(routes::api_enrich_patent_free))
+        .route("/api/patent/pdf/:id", get(routes::api_patent_pdf))
+        .route("/api/patent/image-proxy", get(routes::api_patent_image_proxy))
+        .route(
+            "/api/patent/similar/:id",
+            get(routes::api_recommend_similar),
+        )
+        // AI API
         .route("/api/ai/chat", post(routes::api_ai_chat))
         .route("/api/ai/summarize", post(routes::api_ai_summarize))
         .route("/api/ai/compare", post(routes::api_ai_compare))
+        .route("/api/ai/claims", post(routes::api_ai_claims_analysis))
+        .route("/api/ai/risk", post(routes::api_ai_risk_assessment))
+        .route("/api/ai/compare-matrix", post(routes::api_ai_compare_matrix))
+        .route("/api/ai/batch-summarize", post(routes::api_ai_batch_summarize))
+        // Idea API
+        .route("/api/idea/submit", post(routes::api_idea_submit))
+        .route("/api/idea/analyze", post(routes::api_idea_analyze))
+        .route("/api/idea/list", get(routes::api_idea_list))
+        .route("/api/idea/:id", get(routes::api_idea_get))
+        .route("/api/idea/:id/chat", post(routes::api_idea_chat))
+        .route("/api/idea/:id/messages", get(routes::api_idea_messages))
+        .route("/api/idea/:id/summarize", post(routes::api_idea_summarize_discussion))
+        // Import API
         .route("/api/patents/import", post(routes::api_import_patents))
-        .route("/api/search/online", post(routes::api_search_online))
-        .route("/api/patent/enrich/:id", get(routes::api_enrich_patent))
-        .route("/api/patent/similar/:id", get(routes::api_recommend_similar))
+        // Collections API
+        .route("/api/collections", get(routes::api_list_collections).post(routes::api_create_collection))
+        .route("/api/collections/:id", axum::routing::delete(routes::api_delete_collection))
+        .route("/api/collections/:id/patents", get(routes::api_get_collection_patents))
+        .route("/api/collections/:id/add", post(routes::api_add_to_collection))
+        .route("/api/collections/:id/remove/:patent_id", axum::routing::delete(routes::api_remove_from_collection))
+        // Tags API
+        .route("/api/patents/:id/tags", get(routes::api_get_patent_tags).post(routes::api_add_tag))
+        .route("/api/patents/:id/tags/:tag", axum::routing::delete(routes::api_remove_tag))
+        .route("/api/patents/:id/collections", get(routes::api_get_patent_collections))
+        .route("/api/tags", get(routes::api_list_all_tags))
+        // File upload
         .route("/api/upload/compare", post(routes::api_upload_compare))
+        // Static files
         .nest_service("/static", ServeDir::new("static"))
+        // Body size limit (10MB)
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
+        // Security headers
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::X_FRAME_OPTIONS,
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            axum::http::header::REFERRER_POLICY,
+            HeaderValue::from_static("strict-origin-when-cross-origin"),
+        ))
         .with_state(state);
-    // Bind to 0.0.0.0 to allow access from other devices (mobile, etc.)
+
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Patent Hub running at http://{addr}");
     println!("Local access: http://127.0.0.1:3000");
-    
+
     // Auto-open browser
     let url = "http://127.0.0.1:3000/search";
-    println!("\n正在打开浏览器...");
     if let Err(e) = open::that(url) {
-        println!("无法自动打开浏览器: {}", e);
-        println!("请手动访问: {}", url);
-    } else {
-        println!("✓ 浏览器已打开");
+        println!("Could not open browser: {}", e);
+        println!("Please visit: {}", url);
     }
-    
-    // Try to get local IP for mobile access
-    match local_ip_address::local_ip() {
-        Ok(local_ip) => {
-            println!("\nMobile access: http://{}:3000", local_ip);
-            println!("Scan QR code on mobile:");
-            println!("  ┌─────────────────────────────┐");
-            println!("  │ Use your phone camera to    │");
-            println!("  │ visit: http://{}:3000 │", local_ip);
-            println!("  └─────────────────────────────┘");
-        }
-        Err(_) => {
-            println!("Could not detect local IP. Check your network settings.");
-        }
+
+    // Show local IP for mobile access
+    if let Ok(local_ip) = local_ip_address::local_ip() {
+        println!("Mobile access: http://{}:3000", local_ip);
     }
-    
-    axum::Server::bind(&addr).serve(app.into_make_service()).await?;
+
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await?;
     Ok(())
 }

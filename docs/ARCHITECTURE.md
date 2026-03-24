@@ -17,8 +17,8 @@ Patent Hub 采用经典的三层架构设计，注重跨平台兼容性和可扩
 │  ┌─────────────────────────────────┐   │
 │  │  Routes Layer                   │   │
 │  │  - /api/search                  │   │
-│  │  - /api/patent/:id              │   │
-│  │  - /api/compare                 │   │
+│  │  - /patent/:id                  │   │
+│  │  - /api/ai/compare              │   │
 │  └──────────┬──────────────────────┘   │
 │             │                           │
 │  ┌──────────▼──────────────────────┐   │
@@ -51,35 +51,41 @@ HTTP endpoints:
 - `GET /` - Home page / 首页
 - `GET /search` - Search page / 搜索页面
 - `POST /api/search` - Execute search / 执行搜索
-- `GET /api/patent/:id` - Patent details / 专利详情
-- `POST /api/ai/analyze` - AI analysis / AI 分析
+- `POST /api/search/online` - Online search / 在线搜索
+- `POST /api/search/stats` - Search stats / 统计分析
+- `POST /api/search/export` - Export CSV / 导出 CSV
+- `POST /api/search/analyze` - AI analyze search results / AI 分析检索结果
+- `GET /patent/:id` - Patent detail page / 专利详情页
+- `POST /api/ai/chat` - AI chat / AI 对话
+- `POST /api/ai/summarize` - AI summarize / AI 摘要
 - `POST /api/ai/compare` - Patent comparison / 专利对比
-- `POST /api/export` - Export data / 导出数据
+- `POST /api/patent/fetch` - Fetch patent by number / 抓取专利
+- `POST /api/patents/import` - Import patents / 批量导入
+- `GET /api/patent/enrich/:id` - Enrich patent / 丰富专利信息
+- `GET /api/patent/similar/:id` - Similar recommendations / 相似推荐
+- `POST /api/upload/compare` - Upload file compare / 上传文件对比
+- `GET /api/settings` - Get settings / 获取设置
+- `POST /api/settings/serpapi` - Save SerpAPI key / 保存 SerpAPI
+- `POST /api/settings/ai` - Save AI config / 保存 AI 配置
 
 ### 3. db.rs - Data Layer / 数据层
 
 Database operations:
-- `init_db()` - Initialize schema / 初始化数据库
-- `save_patent()` - Save patent / 保存专利
-- `search_patents()` - Local search / 本地搜索
+- `init()` - Initialize schema / 初始化数据库
+- `insert_patent()` - Save patent / 保存专利
+- `search_smart()` - Smart local search / 智能本地搜索
+- `search_like()` - Fallback local search / 模糊搜索
+- `search_fts()` - Full-text search / 全文搜索
 - `get_patent()` - Get patent by ID / 获取专利
-- `get_search_history()` - Search history / 搜索历史
 
 Schema:
 ```sql
 CREATE TABLE patents (
     id TEXT PRIMARY KEY,
-    patent_id TEXT UNIQUE,
+    patent_number TEXT NOT NULL,
     title TEXT,
-    abstract TEXT,
+    abstract_text TEXT,
     -- ... more fields
-);
-
-CREATE TABLE search_history (
-    id INTEGER PRIMARY KEY,
-    query TEXT,
-    timestamp DATETIME,
-    result_count INTEGER
 );
 ```
 
@@ -103,23 +109,25 @@ Core structures:
 ```rust
 pub struct Patent {
     pub id: String,
-    pub patent_id: String,
+    pub patent_number: String,
     pub title: String,
-    pub abstract: Option<String>,
-    pub applicant: Option<String>,
-    pub inventor: Option<String>,
-    pub filing_date: Option<String>,
-    pub publication_date: Option<String>,
-    pub country: Option<String>,
-    pub url: Option<String>,
+    pub abstract_text: String,
+    pub applicant: String,
+    pub inventor: String,
+    pub filing_date: String,
+    pub publication_date: String,
+    pub country: String,
 }
 
 pub struct SearchRequest {
     pub query: String,
-    pub mode: String,
+    pub page: usize,
+    pub page_size: usize,
     pub country: Option<String>,
     pub date_from: Option<String>,
     pub date_to: Option<String>,
+    pub search_type: Option<String>,
+    pub sort_by: Option<String>,
 }
 ```
 

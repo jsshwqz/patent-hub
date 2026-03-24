@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -8,26 +8,35 @@
 </head>
 <body>
     <nav class="navbar">
-        <a href="/" class="logo">🔬 Patent Hub</a>
+        <a href="/" class="logo">Patent Hub</a>
         <div class="nav-links">
-            <a href="/search">专利检索</a>
-            <a href="/compare">专利对比</a>
-            <a href="/ai" class="active">AI 助手</a>
-            <a href="/settings">设置</a>
+            <a href="/search" data-i18n="nav.search"></a>
+            <a href="/idea" data-i18n="nav.idea"></a>
+            <a href="/compare" data-i18n="nav.compare"></a>
+            <a href="/ai" class="active" data-i18n="nav.ai"></a>
+            <a href="/settings?from=/ai" data-i18n="nav.settings"></a>
         </div>
     </nav>
     <main class="container">
         <div class="chat-container">
-            <h2 style="margin-bottom:8px;">🤖 专利 AI 助手</h2>
-            <p class="hint">可以问我任何专利相关的问题：技术分析、权利要求解读、专利检索策略等。</p>
+            <h2 style="margin-bottom:8px;" data-i18n="ai.title"></h2>
+            <p class="hint" data-i18n="ai.hint"></p>
+            <div style="text-align:right;margin-bottom:8px;">
+                <select onchange="setI18nLang(this.value)" id="lang-switch" style="padding:4px 8px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
             <div class="chat-box" id="chat-messages"></div>
             <div class="chat-input">
-                <input type="text" id="chat-msg" placeholder="输入你的问题..." autofocus>
-                <button onclick="sendChat()">发送</button>
+                <input type="text" id="chat-msg" data-i18n-placeholder="ai.placeholder" autofocus>
+                <button onclick="sendChat()" data-i18n="ai.send"></button>
             </div>
         </div>
     </main>
+    <script src="/static/i18n.js"></script>
     <script>
+    function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     document.getElementById('chat-msg').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') sendChat();
     });
@@ -41,7 +50,7 @@
         escaped.textContent = msg;
         box.innerHTML += '<div class="msg user">' + escaped.innerHTML + '</div>';
         var loadingId = 'ai-' + Date.now();
-        box.innerHTML += '<div class="msg ai" id="' + loadingId + '">思考中...</div>';
+        box.innerHTML += '<div class="msg ai" id="' + loadingId + '">' + t('ai.thinking') + '</div>';
         box.scrollTop = box.scrollHeight;
         try {
             var resp = await fetch('/api/ai/chat', {
@@ -50,14 +59,16 @@
                 body: JSON.stringify({ message: msg })
             });
             var data = await resp.json();
-            document.getElementById(loadingId).innerHTML = data.content.replace(/\n/g, '<br>');
+            document.getElementById(loadingId).innerHTML = escapeHtml(data.content).replace(/\n/g, '<br>');
         } catch(e) {
             var el = document.getElementById(loadingId);
-            el.innerHTML = '请求失败: ' + e;
+            el.textContent = t('ai.fail') + ': ' + e;
             el.classList.add('error');
         }
         box.scrollTop = box.scrollHeight;
     }
+    document.getElementById('lang-switch').value = i18nLang;
+    applyI18nCommon();
     </script>
 </body>
 </html>

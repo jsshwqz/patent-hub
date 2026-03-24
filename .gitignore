@@ -1,56 +1,11 @@
-# Rust
-/target/
-Cargo.lock
-**/*.rs.bk
-*.pdb
-
-# Database
+target/
 *.db
 *.db-shm
 *.db-wal
-
-# Environment
 .env
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Logs
-*.log
-
-# Build artifacts
-*.exe
-*.dll
-*.so
-*.dylib
-
-# Backup files
-*.bak
-*.rs.bak
-
-# Temporary scripts
-fix_client.py
-test_data.json
-
-# Development files
-.dev/
-
-# Release packages
-*.zip
-release-package/
-
-# Status reports (dev-only)
-COMPLETION_REPORT.md
-PROJECT_STATUS.md
-SYNC_STATUS.md
-MULTI_REPO_SYNC.md
-PROXY_FIX_GUIDE.md
+.claude/
+.skill-router/
+Cargo.lock
+mcp_stderr.txt
+skills/
+docs/plans/

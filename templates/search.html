@@ -3,307 +3,579 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>专利检索 - Patent Hub</title>
+<title>Patent Search - Patent Hub</title>
 <link rel="stylesheet" href="/static/style.css?v={{timestamp}}">
+<style>
+.search-container { display: grid; gap: 16px; }
+.panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
+.panel h3 { margin: 0 0 12px; color: #58a6ff; font-size: 16px; }
+.search-grid { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 8px; }
+.search-grid-2 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 8px; }
+.search-grid input, .search-grid select, .search-grid-2 input, .search-grid-2 select {
+    width: 100%;
+    padding: 10px 12px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #c9d1d9;
+}
+.btn-secondary { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; }
+.btn-secondary:hover { background: #30363d; }
+.history-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.history-item {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 999px;
+    color: #c9d1d9;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.history-item:hover { border-color: #58a6ff; color: #58a6ff; }
+#results-info { color: #8b949e; margin-bottom: 8px; }
+.patent-card { margin-bottom: 10px; }
+.patent-title-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.score-tag { min-width: 90px; text-align: right; }
+.score-value { font-size: 22px; font-weight: 700; }
+.score-source { font-size: 11px; color: #8b949e; margin-top: 2px; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 14px; color: #8b949e; font-size: 13px; margin: 8px 0; }
+.pagination { display: flex; gap: 8px; justify-content: center; margin-top: 12px; align-items: center; }
+.stats-grid { display: grid; gap: 10px; }
+.bar-item { display: grid; grid-template-columns: 130px 1fr 50px; gap: 10px; align-items: center; font-size: 13px; }
+.bar-track { height: 8px; background: #0d1117; border-radius: 999px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, #238636, #58a6ff); }
+.muted { color: #8b949e; font-size: 13px; }
+.lang-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.lang-switch { width: 160px; }
+@media (max-width: 900px) {
+    .search-grid { grid-template-columns: 1fr; }
+    .search-grid-2 { grid-template-columns: 1fr 1fr; }
+    .bar-item { grid-template-columns: 90px 1fr 40px; }
+}
+</style>
 </head>
 <body>
 <nav class="navbar">
-<a href="/" class="logo">🔬 Patent Hub</a>
+<a href="/" class="logo">Patent Hub</a>
 <div class="nav-links">
-<a href="/search" class="active">专利检索</a>
-<a href="/compare">专利对比</a>
-<a href="/ai">AI 助手</a>
-<a href="/settings">设置</a>
+<a href="/search" class="active" data-i18n="nav.search"></a>
+<a href="/idea">创意验证</a>
+<a href="/compare" data-i18n="nav.compare"></a>
+<a href="/ai" data-i18n="nav.ai"></a>
+<a href="/settings?from=/search" data-i18n="nav.settings"></a>
 </div>
 </nav>
-<main class="container">
-<h2 style="margin-bottom: 16px;">专利检索</h2>
-<div class="search-form">
-<input type="text" id="search-input" placeholder="输入关键词、专利号、公开号或申请人..." autofocus>
-<select id="country-filter">
-<option value="">全部地区</option>
-<option value="CN">中国</option>
-<option value="US">美国</option>
-<option value="EP">欧洲</option>
-<option value="JP">日本</option>
-<option value="KR">韩国</option>
+
+<main class="container search-container">
+<div class="panel">
+<div class="lang-row">
+<select id="lang-switch" class="lang-switch" onchange="setLanguage(this.value)">
+<option value="zh">中文</option>
+<option value="en">English</option>
 </select>
+</div>
+<h3 data-i18n="search.title"></h3>
+<div class="search-grid">
+<input type="text" id="search-input" data-i18n-placeholder="search.placeholder">
 <select id="search-mode">
-<option value="online">在线搜索 (Google Patents)</option>
-<option value="local">本地数据库</option>
+<option value="local" data-i18n="mode.local"></option>
+<option value="online" data-i18n="mode.online"></option>
 </select>
-<select id="page-size" style="width: 100px;">
-<option value="10">10条/页</option>
-<option value="20" selected>20条/页</option>
-<option value="50">50条/页</option>
-<option value="100">100条/页</option>
+<select id="search-type">
+<option value="auto" data-i18n="type.auto"></option>
+<option value="inventor" data-i18n="type.inventor"></option>
+<option value="applicant" data-i18n="type.applicant"></option>
+<option value="patent_number" data-i18n="type.patentNumber"></option>
+<option value="keyword" data-i18n="type.keyword"></option>
 </select>
-<input type="date" id="date-from" placeholder="起始日期" style="width: 140px;">
-<input type="date" id="date-to" placeholder="截止日期" style="width: 140px;">
-<button onclick="doSearch(1)">检索</button>
-<button onclick="exportResults()" style="background: #238636;">导出 Excel</button>
+<select id="country-filter">
+<option value="" data-i18n="country.all"></option>
+<option value="CN">CN</option>
+<option value="US">US</option>
+<option value="EP">EP</option>
+<option value="JP">JP</option>
+<option value="KR">KR</option>
+</select>
+<select id="sort-by">
+<option value="relevance" data-i18n="sort.relevance"></option>
+<option value="new" data-i18n="sort.new"></option>
+<option value="old" data-i18n="sort.old"></option>
+</select>
 </div>
-<div id="search-history" style="margin: 16px 0; padding: 12px; background: #161b22; border-radius: 6px; display: none;">
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-<span style="color: #8b949e; font-size: 13px;">🕐 搜索历史</span>
-<button onclick="clearHistory()" style="padding: 4px 8px; font-size: 12px; background: #21262d;">清空</button>
+<div class="search-grid-2">
+<input type="date" id="date-from" data-i18n-title="date.from">
+<input type="date" id="date-to" data-i18n-title="date.to">
+<select id="page-size">
+<option value="10">10 / page</option>
+<option value="20" selected>20 / page</option>
+<option value="50">50 / page</option>
+<option value="100">100 / page</option>
+</select>
+<button onclick="doSearch(1)" data-i18n="btn.search"></button>
+<button class="btn-secondary" onclick="showStats()" data-i18n="btn.stats"></button>
+<button class="btn-secondary" onclick="exportCsv()" data-i18n="btn.export"></button>
 </div>
-<div id="history-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
 </div>
+
+<div class="panel">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+<h3 style="margin:0;" data-i18n="history.title"></h3>
+<button class="btn-secondary" onclick="clearHistory()" data-i18n="history.clear"></button>
+</div>
+<div id="history-list" class="history-list"></div>
+</div>
+
+<div class="panel" id="stats-panel" style="display:none;">
+<h3 data-i18n="stats.title"></h3>
+<div id="stats-content" class="muted"></div>
+</div>
+
+<div class="panel">
 <div id="results-info"></div>
-<div id="stats-container" style="display:none; margin: 20px 0; padding: 20px; background: #161b22; border-radius: 8px;">
-<h3 style="margin: 0 0 16px 0; color: #58a6ff;">📊 统计分析</h3>
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-<div>
-<h4 style="margin: 0 0 12px 0; color: #8b949e;">申请人 TOP 10</h4>
-<div id="applicant-chart"></div>
-</div>
-<div>
-<h4 style="margin: 0 0 12px 0; color: #8b949e;">国家/地区分布</h4>
-<div id="country-chart"></div>
-</div>
-</div>
-<div style="margin-top: 20px;">
-<h4 style="margin: 0 0 12px 0; color: #8b949e;">申请趋势</h4>
-<div id="year-chart"></div>
-</div>
-</div>
 <div id="results"></div>
-<div id="pagination" style="display: flex; gap: 8px; justify-content: center; margin-top: 20px;"></div>
+<div id="pagination" class="pagination"></div>
+</div>
 </main>
+
 <script>
-// 搜索历史管理
-function saveSearchHistory(query) {
-    let history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
-    history = history.filter(h => h !== query);
-    history.unshift(query);
-    history = history.slice(0, 10);
-    localStorage.setItem('searchHistory', JSON.stringify(history));
+const HISTORY_KEY = 'patent_hub_search_history_v1';
+const LANG_KEY = 'patent_hub_ui_lang';
+let currentRequest = null;
+let lastResponse = null;
+let lastPage = 1;
+let lastPageSize = 20;
+let currentLang = 'zh';
+
+const I18N = {
+  zh: {
+    'nav.search': '搜索',
+    'nav.compare': '对比',
+    'nav.ai': 'AI 助手',
+    'nav.settings': '设置',
+    'search.title': '专利检索',
+    'search.placeholder': '输入关键词、专利号、申请人或发明人...',
+    'mode.local': '本地数据库',
+    'mode.online': '在线搜索',
+    'type.auto': '自动识别',
+    'type.inventor': '发明人',
+    'type.applicant': '申请人',
+    'type.patentNumber': '专利号',
+    'type.keyword': '关键词',
+    'country.all': '全部地区',
+    'sort.relevance': '相关度',
+    'sort.new': '最新',
+    'sort.old': '最早',
+    'date.from': '开始日期',
+    'date.to': '结束日期',
+    'btn.search': '搜索',
+    'btn.stats': '统计',
+    'btn.export': '导出 CSV',
+    'history.title': '搜索历史',
+    'history.clear': '清空',
+    'history.empty': '暂无搜索历史',
+    'stats.title': '统计分析',
+    'stats.empty': '暂无统计数据',
+    'stats.loading': '统计计算中...',
+    'stats.total': '统计样本总数',
+    'stats.appTop': '申请人 TOP 10',
+    'stats.country': '国家分布',
+    'stats.year': '申请趋势（按年份）',
+    'results.searching': '搜索中...',
+    'results.noData': '未找到结果',
+    'results.info': '找到 {total} 条 | 第 {page} 页 | 每页 {size} 条{source}',
+    'results.source': '来源',
+    'results.google': 'Google Patents',
+    'results.score': '相关性评分',
+    'alert.emptyQuery': '请输入搜索内容',
+    'alert.searchFirst': '请先执行一次搜索',
+    'alert.statsFail': '统计失败',
+    'alert.exportFail': '导出失败',
+    'page.prev': '上一页',
+    'page.next': '下一页',
+    'meta.patent': '专利号',
+    'meta.applicant': '申请人',
+    'meta.inventor': '发明人',
+    'meta.filing': '申请日',
+    'meta.country': '国家'
+  },
+  en: {
+    'nav.search': 'Search',
+    'nav.compare': 'Compare',
+    'nav.ai': 'AI',
+    'nav.settings': 'Settings',
+    'search.title': 'Patent Search',
+    'search.placeholder': 'Enter keywords, patent number, applicant, or inventor...',
+    'mode.local': 'Local DB',
+    'mode.online': 'Online',
+    'type.auto': 'Auto Detect',
+    'type.inventor': 'Inventor',
+    'type.applicant': 'Applicant',
+    'type.patentNumber': 'Patent Number',
+    'type.keyword': 'Keyword',
+    'country.all': 'All Regions',
+    'sort.relevance': 'Relevance',
+    'sort.new': 'Newest',
+    'sort.old': 'Oldest',
+    'date.from': 'Date from',
+    'date.to': 'Date to',
+    'btn.search': 'Search',
+    'btn.stats': 'Stats',
+    'btn.export': 'Export CSV',
+    'history.title': 'History',
+    'history.clear': 'Clear',
+    'history.empty': 'No history',
+    'stats.title': 'Statistics',
+    'stats.empty': 'No stats yet',
+    'stats.loading': 'Calculating...',
+    'stats.total': 'Total samples',
+    'stats.appTop': 'Applicants TOP 10',
+    'stats.country': 'Countries',
+    'stats.year': 'Year Trend',
+    'results.searching': 'Searching...',
+    'results.noData': 'No results',
+    'results.info': 'Found {total} | page {page} | {size}/page{source}',
+    'results.source': 'source',
+    'results.google': 'Google Patents',
+    'results.score': 'Relevance',
+    'alert.emptyQuery': 'Please enter a query',
+    'alert.searchFirst': 'Please run a search first',
+    'alert.statsFail': 'Stats failed',
+    'alert.exportFail': 'Export failed',
+    'page.prev': 'Prev',
+    'page.next': 'Next',
+    'meta.patent': 'Patent',
+    'meta.applicant': 'Applicant',
+    'meta.inventor': 'Inventor',
+    'meta.filing': 'Filing',
+    'meta.country': 'Country'
+  }
+};
+
+function t(key, vars = {}) {
+    const dict = I18N[currentLang] || I18N.zh;
+    let value = dict[key] || key;
+    Object.keys(vars).forEach((k) => {
+        value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(vars[k]));
+    });
+    return value;
+}
+
+function setLanguage(lang) {
+    currentLang = (lang === 'en') ? 'en' : 'zh';
+    localStorage.setItem(LANG_KEY, currentLang);
+    applyI18n();
+    renderHistory();
+    if (lastResponse) {
+        renderResults(lastResponse, lastPage, lastPageSize);
+    }
+}
+
+function applyI18n() {
+    document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+        el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+        el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+        el.title = t(el.getAttribute('data-i18n-title'));
+    });
+}
+
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getSearchEndpoint() {
+    const mode = document.getElementById('search-mode').value;
+    return mode === 'online' ? '/api/search/online' : '/api/search';
+}
+
+function buildRequest(page) {
+    const query = document.getElementById('search-input').value.trim();
+    const country = document.getElementById('country-filter').value;
+    const searchType = document.getElementById('search-type').value;
+    const sortBy = document.getElementById('sort-by').value;
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+    const pageSize = parseInt(document.getElementById('page-size').value, 10);
+
+    const body = { query, page, page_size: pageSize, sort_by: sortBy };
+    if (country) body.country = country;
+    if (searchType && searchType !== 'auto') body.search_type = searchType;
+    if (dateFrom) body.date_from = dateFrom;
+    if (dateTo) body.date_to = dateTo;
+    return body;
+}
+
+async function doSearch(page) {
+    const body = buildRequest(page);
+    if (!body.query) {
+        alert(t('alert.emptyQuery'));
+        return;
+    }
+
+    currentRequest = body;
+    saveHistory(body.query);
+    renderHistory();
+    document.getElementById('results').innerHTML = `<p class="muted">${t('results.searching')}</p>`;
+    document.getElementById('pagination').innerHTML = '';
+
+    try {
+        const endpoint = getSearchEndpoint();
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        lastResponse = data;
+        lastPage = page;
+        lastPageSize = body.page_size;
+        renderResults(data, page, body.page_size);
+    } catch (err) {
+        document.getElementById('results').innerHTML =
+            `<p style="color:#f85149;">${escapeHtml(t('alert.exportFail'))}: ${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function renderResults(data, page, pageSize) {
+    const total = Number(data.total || 0);
+    const source = data.source ? ` | ${t('results.source')}: ${escapeHtml(data.source)}` : '';
+    document.getElementById('results-info').innerHTML = t('results.info', {
+        total,
+        page,
+        size: pageSize,
+        source
+    });
+
+    const patents = Array.isArray(data.patents) ? data.patents : [];
+    if (!patents.length) {
+        const extra = data.google_url ? ` | <a href="${escapeHtml(data.google_url)}" target="_blank">${t('results.google')}</a>` : '';
+        document.getElementById('results').innerHTML = `<p class="muted">${t('results.noData')}${extra}</p>`;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    patents.forEach((p) => {
+        const score = Number(p.relevance_score || 0);
+        const scoreColor = score >= 90 ? '#3fb950' : score >= 70 ? '#58a6ff' : score >= 50 ? '#d29922' : '#8b949e';
+        html += `
+        <div class="patent-card">
+            <div class="patent-title-row">
+                <div style="flex:1;">
+                    <h3><a href="/patent/${escapeHtml(p.id)}">${escapeHtml(p.title || 'Untitled')}</a></h3>
+                    <div class="meta-row">
+                        <span>${t('meta.patent')}: ${escapeHtml(p.patent_number || 'N/A')}</span>
+                        <span>${t('meta.applicant')}: ${escapeHtml(p.applicant || 'N/A')}</span>
+                        <span>${t('meta.inventor')}: ${escapeHtml(p.inventor || 'N/A')}</span>
+                        <span>${t('meta.filing')}: ${escapeHtml(p.filing_date || 'N/A')}</span>
+                        <span>${t('meta.country')}: ${escapeHtml(p.country || 'N/A')}</span>
+                    </div>
+                    <p class="patent-abstract">${escapeHtml((p.abstract_text || '').slice(0, 260))}${(p.abstract_text || '').length > 260 ? '...' : ''}</p>
+                </div>
+                <div class="score-tag">
+                    <div class="score-value" style="color:${scoreColor}">${score.toFixed(0)}%</div>
+                    <div class="score-source">${escapeHtml(p.score_source || t('results.score'))}</div>
+                </div>
+            </div>
+        </div>`;
+    });
+    // Show dedup info
+    if (data.dedup_removed && data.dedup_removed > 0) {
+        html = `<div style="padding:8px 12px;margin-bottom:12px;background:#1c2128;border-radius:6px;color:#8b949e;font-size:0.85em;">
+            🔄 已合并 ${data.dedup_removed} 条重复专利（同族不同版本）
+        </div>` + html;
+    }
+
+    // Show category statistics
+    if (data.categories && data.categories.length > 0) {
+        let catHtml = '<div style="padding:12px;margin-bottom:16px;background:#161b22;border-radius:8px;border:1px solid #30363d;">';
+        catHtml += '<div style="font-size:0.85em;color:#58a6ff;margin-bottom:8px;font-weight:bold;">📊 分类统计</div>';
+        catHtml += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+        data.categories.forEach(function(cat) {
+            catHtml += '<span style="padding:4px 10px;background:#21262d;border-radius:12px;font-size:0.8em;color:#c9d1d9;">'
+                + escapeHtml(cat.label) + ' <strong style="color:#58a6ff;">' + cat.count + '</strong></span>';
+        });
+        catHtml += '</div></div>';
+        html = catHtml + html;
+    }
+
+    document.getElementById('results').innerHTML = html;
+    renderPagination(total, page, pageSize);
+}
+
+function renderPagination(total, page, pageSize) {
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    if (totalPages <= 1) {
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+    const prevDisabled = page <= 1 ? 'disabled' : '';
+    const nextDisabled = page >= totalPages ? 'disabled' : '';
+    document.getElementById('pagination').innerHTML = `
+        <button class="btn-secondary" ${prevDisabled} onclick="doSearch(${page - 1})">${t('page.prev')}</button>
+        <span class="muted">${page} / ${totalPages}</span>
+        <button class="btn-secondary" ${nextDisabled} onclick="doSearch(${page + 1})">${t('page.next')}</button>
+    `;
+}
+
+function saveHistory(query) {
+    const cleaned = query.trim();
+    if (!cleaned) return;
+    const history = loadHistory().filter((item) => item !== cleaned);
+    history.unshift(cleaned);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 10)));
+}
+
+function loadHistory() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function clearHistory() {
+    localStorage.removeItem(HISTORY_KEY);
     renderHistory();
 }
 
-function renderHistory() {
-    const history = JSON.parse(localStorage.getItem('searchHistory') || '[]');
-    const container = document.getElementById('search-history');
-    const list = document.getElementById('history-list');
-    if (history.length === 0) {
-        container.style.display = 'none';
-        return;
-    }
-    container.style.display = 'block';
-    list.innerHTML = history.map(h => 
-        `<button onclick="searchFromHistory('${h.replace(/'/g, "\\'")}')" style="padding: 6px 12px; background: #21262d; border-radius: 4px; font-size: 13px; color: #c9d1d9;">${h}</button>`
-    ).join('');
-}
-
-function searchFromHistory(query) {
+function useHistory(query) {
     document.getElementById('search-input').value = query;
     doSearch(1);
 }
 
-function clearHistory() {
-    if (confirm('确定清空搜索历史？')) {
-        localStorage.removeItem('searchHistory');
-        renderHistory();
+function useHistoryEncoded(encoded) {
+    useHistory(decodeURIComponent(encoded));
+}
+
+function renderHistory() {
+    const history = loadHistory();
+    if (!history.length) {
+        document.getElementById('history-list').innerHTML = `<span class="muted">${t('history.empty')}</span>`;
+        return;
+    }
+    document.getElementById('history-list').innerHTML = history
+        .map((item) => `<button class="history-item" onclick="useHistoryEncoded('${encodeURIComponent(item)}')">${escapeHtml(item)}</button>`)
+        .join('');
+}
+
+function renderBarList(items) {
+    if (!items.length) return `<p class="muted">${t('stats.empty')}</p>`;
+    const max = Math.max(...items.map((x) => Number(x[1] || 0)), 1);
+    return items.map((item) => {
+        const label = escapeHtml(item[0] || 'Unknown');
+        const value = Number(item[1] || 0);
+        const width = Math.max(4, (value / max) * 100);
+        return `<div class="bar-item">
+            <span>${label}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+            <strong>${value}</strong>
+        </div>`;
+    }).join('');
+}
+
+async function showStats() {
+    if (!currentRequest) {
+        alert(t('alert.searchFirst'));
+        return;
+    }
+    document.getElementById('stats-panel').style.display = 'block';
+    document.getElementById('stats-content').innerHTML = `<p class="muted">${t('stats.loading')}</p>`;
+    try {
+        const statsReq = { ...currentRequest, page: 1, page_size: 10000 };
+        const res = await fetch('/api/search/stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(statsReq)
+        });
+        const data = await res.json();
+        const applicants = Array.isArray(data.applicants) ? data.applicants : [];
+        const countries = Array.isArray(data.countries) ? data.countries : [];
+        const years = Array.isArray(data.years) ? data.years : [];
+        document.getElementById('stats-content').innerHTML = `
+            <p class="muted" style="margin-bottom:10px;">${t('stats.total')}: <strong>${Number(data.total || 0)}</strong></p>
+            <div class="stats-grid">
+                <div>
+                    <h4 style="margin-bottom:8px;">${t('stats.appTop')}</h4>
+                    ${renderBarList(applicants)}
+                </div>
+                <div>
+                    <h4 style="margin:10px 0 8px;">${t('stats.country')}</h4>
+                    ${renderBarList(countries)}
+                </div>
+                <div>
+                    <h4 style="margin:10px 0 8px;">${t('stats.year')}</h4>
+                    ${renderBarList(years)}
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        document.getElementById('stats-content').innerHTML =
+            `<p style="color:#f85149;">${t('alert.statsFail')}: ${escapeHtml(err.message)}</p>`;
     }
 }
 
-let currentQuery = '';
-let currentPage = 1;
-let totalResults = 0;
+async function exportCsv() {
+    if (!currentRequest) {
+        alert(t('alert.searchFirst'));
+        return;
+    }
+    try {
+        const res = await fetch('/api/search/export', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...currentRequest, page: 1, page_size: 10000 })
+        });
+        if (!res.ok) {
+            const errText = await res.text();
+            alert(`${t('alert.exportFail')}: ${errText}`);
+            return;
+        }
+        const blob = await res.blob();
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const matched = disposition.match(/filename="([^"]+)"/);
+        const fileName = matched ? matched[1] : `patents_${Date.now()}.csv`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert(`${t('alert.exportFail')}: ${err.message}`);
+    }
+}
 
-async function doSearch(page) {
-const query = document.getElementById('search-input').value.trim();
-const country = document.getElementById('country-filter').value;
-const mode = document.getElementById('search-mode').value;
-const pageSize = parseInt(document.getElementById('page-size').value);
-if (!query) return;
-currentQuery = query;
-saveSearchHistory(query);
-currentPage = page;
-document.getElementById('results').innerHTML = '<p style="text-align:center;">检索中...</p>';
-document.getElementById('stats-container').style.display = 'none';
-try {
-const endpoint = mode === 'online' ? '/api/search/online' : '/api/search';
-const body = { query, page, page_size: pageSize };
-const dateFrom = document.getElementById("date-from").value;
-const dateTo = document.getElementById("date-to").value;
-if (dateFrom) body.date_from = dateFrom;
-if (dateTo) body.date_to = dateTo;
-if (country) body.country = country;
-const res = await fetch(endpoint, {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(body)
+window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem(LANG_KEY);
+    currentLang = (saved === 'en') ? 'en' : 'zh';
+    document.getElementById('lang-switch').value = currentLang;
+    applyI18n();
+    renderHistory();
+
+    document.getElementById('search-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') doSearch(1);
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const q = urlParams.get('q');
+    if (q) {
+        document.getElementById('search-input').value = q;
+        doSearch(1);
+    }
 });
-const data = await res.json();
-totalResults = data.total || 0;
-document.getElementById('results-info').innerHTML = `<p style="color: #8b949e;">找到 <strong style="color: #58a6ff;">${totalResults}</strong> 条结果 | 第 ${page} 页 | 每页 ${pageSize} 条</p>`;
-if (data.patents.length === 0) {
-document.getElementById('results').innerHTML = '<p style="text-align:center;color:#8b949e;">未找到相关专利</p><p style="text-align:center;margin-top:8px;"><a href="https://patents.google.com/?q=' + encodeURIComponent(query) + '" target="_blank" style="color:#58a6ff;">在 Google Patents 查看</a></p>';
-renderPagination(0);
-return;
-}
-let html = '';
-data.patents.forEach((p, index) => {
-const abstractPreview = (p.abstract_text || '').substring(0, 150);
-const itemNumber = (page - 1) * pageSize + index + 1;
-html += `<div class="patent-card" style="padding: 12px 16px; position: relative;">
-<div style="position: absolute; left: 16px; top: 12px; font-size: 18px; font-weight: bold; color: #58a6ff; opacity: 0.6;">${itemNumber}</div>
-<div style="margin-left: 40px;">
-<h3 style="margin: 0 0 8px 0; font-size: 16px;"><a href="/patent/${p.id}">${p.title || '无标题'}</a></h3>
-<div class="patent-meta" style="font-size: 13px; margin-bottom: 8px;">
-<span>📄 ${p.patent_number || 'N/A'}</span>
-<span>👤 ${p.applicant || 'N/A'}</span>
-<span>📅 ${p.filing_date || 'N/A'}</span>
-<span>🌍 ${p.country || 'N/A'}</span>
-</div>
-<p class="patent-abstract" style="font-size: 14px; line-height: 1.5; margin: 0;">${abstractPreview}${abstractPreview.length >= 150 ? '...' : ''}</p>
-</div>
-</div>`;
-});
-document.getElementById('results').innerHTML = html;
-renderPagination(totalResults);
-if (page === 1 && mode === 'online') {
-loadStats();
-}
-} catch (err) {
-document.getElementById('results').innerHTML = `<p style="color:#f85149;">错误: ${err.message}</p>`;
-}
-}
-
-function renderPagination(total) {
-const pageSize = parseInt(document.getElementById('page-size').value);
-const totalPages = Math.ceil(total / pageSize);
-if (totalPages <= 1) {
-document.getElementById('pagination').innerHTML = '';
-return;
-}
-let html = '';
-if (currentPage > 1) {
-html += `<button onclick="doSearch(${currentPage - 1})">上一页</button>`;
-}
-const start = Math.max(1, currentPage - 2);
-const end = Math.min(totalPages, currentPage + 2);
-for (let i = start; i <= end; i++) {
-if (i === currentPage) {
-html += `<button class="active">${i}</button>`;
-} else {
-html += `<button onclick="doSearch(${i})">${i}</button>`;
-}
-}
-if (currentPage < totalPages) {
-html += `<button onclick="doSearch(${currentPage + 1})">下一页</button>`;
-}
-document.getElementById('pagination').innerHTML = html;
-}
-
-async function loadStats() {
-try {
-const res = await fetch('/api/search/stats', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ query: currentQuery, country: document.getElementById('country-filter').value })
-});
-const stats = await res.json();
-if (stats.by_applicant && stats.by_applicant.length > 0) {
-document.getElementById('stats-container').style.display = 'block';
-renderApplicantChart(stats.by_applicant);
-renderCountryChart(stats.by_country);
-renderYearChart(stats.by_year);
-}
-} catch (err) {
-console.error('Stats error:', err);
-}
-}
-
-function renderApplicantChart(data) {
-const maxCount = Math.max(...data.map(d => d.count));
-let html = '';
-data.forEach(d => {
-const width = (d.count / maxCount * 100).toFixed(1);
-html += `<div style="margin-bottom: 8px;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-<span style="color: #c9d1d9; font-size: 13px;">${d.applicant}</span>
-<span style="color: #58a6ff; font-weight: bold;">${d.count}</span>
-</div>
-<div style="background: #21262d; height: 20px; border-radius: 4px; overflow: hidden;">
-<div style="background: linear-gradient(90deg, #58a6ff, #1f6feb); height: 100%; width: ${width}%;"></div>
-</div>
-</div>`;
-});
-document.getElementById('applicant-chart').innerHTML = html;
-}
-
-function renderCountryChart(data) {
-const maxCount = Math.max(...data.map(d => d.count));
-let html = '';
-data.forEach(d => {
-const width = (d.count / maxCount * 100).toFixed(1);
-html += `<div style="margin-bottom: 8px;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-<span style="color: #c9d1d9; font-size: 13px;">${d.country}</span>
-<span style="color: #58a6ff; font-weight: bold;">${d.count}</span>
-</div>
-<div style="background: #21262d; height: 20px; border-radius: 4px; overflow: hidden;">
-<div style="background: linear-gradient(90deg, #238636, #196c2e); height: 100%; width: ${width}%;"></div>
-</div>
-</div>`;
-});
-document.getElementById('country-chart').innerHTML = html;
-}
-
-function renderYearChart(data) {
-const maxCount = Math.max(...data.map(d => d.count));
-let html = '<div style="display: flex; align-items: flex-end; gap: 4px; height: 150px;">';
-data.forEach(d => {
-const height = (d.count / maxCount * 100).toFixed(1);
-html += `<div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-<div style="color: #58a6ff; font-size: 11px; margin-bottom: 4px;">${d.count}</div>
-<div style="background: linear-gradient(180deg, #f85149, #da3633); width: 100%; height: ${height}%; border-radius: 4px 4px 0 0;"></div>
-<div style="color: #8b949e; font-size: 11px; margin-top: 4px;">${d.year}</div>
-</div>`;
-});
-html += '</div>';
-document.getElementById('year-chart').innerHTML = html;
-}
-
-async function exportResults() {
-if (!currentQuery) {
-alert('请先进行检索');
-return;
-}
-try {
-const country = document.getElementById('country-filter').value;
-const body = { query: currentQuery };
-if (country) body.country = country;
-const res = await fetch('/api/search/export', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(body)
-});
-const blob = await res.blob();
-const url = window.URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = `patents_${Date.now()}.csv`;
-a.click();
-window.URL.revokeObjectURL(url);
-} catch (err) {
-alert('导出失败: ' + err.message);
-}
-}
-
-document.getElementById('search-input').addEventListener('keydown', e => {
-if (e.key === 'Enter') doSearch(1);
-});
-
-renderHistory();
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('q')) {
-document.getElementById('search-input').value = urlParams.get('q');
-doSearch(1);
-}
 </script>
 </body>
 </html>

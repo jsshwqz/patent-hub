@@ -1,11 +1,8 @@
 target/
-*.db
-*.db-shm
-*.db-wal
-.env
 .git/
-.gitignore
-*.md
-*.bat
-.vscode/
-.idea/
+*.db
+.env
+mcp_stderr.txt
+docs/plans/
+skills/
+tests/

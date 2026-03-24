@@ -1,48 +1,19 @@
-# Build stage
-FROM rust:1.75-slim as builder
-
+# Stage 1: Build
+FROM rust:1.82-bookworm AS builder
 WORKDIR /app
-
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy manifests
 COPY Cargo.toml Cargo.lock ./
+COPY src/ src/
+RUN cargo build --release --bin patent-hub
 
-# Copy source code
-COPY src ./src
-COPY templates ./templates
-COPY static ./static
-
-# Build release
-RUN cargo build --release
-
-# Runtime stage
+# Stage 2: Runtime
 FROM debian:bookworm-slim
-
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+COPY --from=builder /app/target/release/patent-hub .
+COPY templates/ templates/
+COPY static/ static/
+COPY .env.example .env.example
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy binary from builder
-COPY --from=builder /app/target/release/patent-hub /app/patent-hub
-
-# Copy templates and static files
-COPY --from=builder /app/templates /app/templates
-COPY --from=builder /app/static /app/static
-
-# Copy env example
-COPY .env.example /app/.env.example
-
-# Expose port
 EXPOSE 3000
-
-# Run
+ENV RUST_LOG=info
 CMD ["./patent-hub"]
