@@ -420,6 +420,8 @@ function renderResults(data, page, pageSize) {
     html = `<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;padding:8px 12px;background:#161b22;border-radius:6px;">
         <label style="color:#8b949e;font-size:0.85em;cursor:pointer;"><input type="checkbox" onchange="toggleAllChecks(this.checked)" style="margin-right:4px;">全选</label>
         <button onclick="batchSummarize()" style="background:#1f6feb;padding:4px 12px;font-size:0.85em;border-radius:4px;color:white;border:none;cursor:pointer;">🤖 批量摘要</button>
+        <button onclick="compareMatrix()" style="background:#8b5cf6;padding:4px 12px;font-size:0.85em;border-radius:4px;color:white;border:none;cursor:pointer;">📊 对比矩阵</button>
+        <button onclick="toggleRiskModal()" style="background:#da3633;padding:4px 12px;font-size:0.85em;border-radius:4px;color:white;border:none;cursor:pointer;">⚠️ 侵权评估</button>
         <span id="batch-count" style="color:#8b949e;font-size:0.8em;"></span>
     </div>` + html;
 
@@ -591,6 +593,56 @@ window.addEventListener('DOMContentLoaded', () => {
         doSearch(1);
     }
 });
+async function compareMatrix() {
+    var ids = Array.from(document.querySelectorAll('.batch-check:checked')).map(function(cb) { return cb.dataset.id; });
+    var resultDiv = document.getElementById('batch-result');
+    if (ids.length < 2) { resultDiv.innerHTML = '<p style="color:#d29922;">请勾选 2-5 个专利进行对比</p>'; return; }
+    if (ids.length > 5) { resultDiv.innerHTML = '<p style="color:#d29922;">最多选择 5 个专利</p>'; return; }
+    resultDiv.innerHTML = '<p style="color:#58a6ff;">⏳ 正在生成对比矩阵 (' + ids.length + '条)...</p>';
+    try {
+        var resp = await fetch('/api/ai/compare-matrix', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({patent_ids: ids}) });
+        var data = await resp.json();
+        if (data.status === 'ok') {
+            resultDiv.innerHTML = '<h3 style="color:#8b5cf6;margin-bottom:12px;">📊 技术对比矩阵</h3><div style="padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;">' + escapeHtml(data.matrix).replace(/\n/g, '<br>') + '</div>';
+        } else { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(data.error || '对比失败') + '</p>'; }
+    } catch(e) { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(e.message) + '</p>'; }
+}
+
+function toggleRiskModal() {
+    var modal = document.getElementById('risk-modal');
+    if (modal) { modal.remove(); return; }
+    var ids = Array.from(document.querySelectorAll('.batch-check:checked')).map(function(cb) { return cb.dataset.id; }).join(', ');
+    var html = '<div id="risk-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:center;justify-content:center;">'
+        + '<div style="background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;max-width:500px;width:90%;">'
+        + '<h3 style="color:#da3633;margin:0 0 16px;">⚠️ 侵权风险评估</h3>'
+        + '<label style="color:#8b949e;font-size:0.85em;">产品/技术描述</label>'
+        + '<textarea id="risk-product" rows="4" style="width:100%;padding:8px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;margin:4px 0 12px;" placeholder="描述你的产品或技术方案..."></textarea>'
+        + '<label style="color:#8b949e;font-size:0.85em;">专利号（逗号分隔，或先在搜索结果中勾选）</label>'
+        + '<input id="risk-patents" type="text" value="' + escapeHtml(ids) + '" style="width:100%;padding:8px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;margin:4px 0 16px;" placeholder="CN109028151B, US8839628B2">'
+        + '<div style="display:flex;gap:8px;">'
+        + '<button onclick="runRiskAssessment()" style="background:#da3633;padding:8px 20px;border-radius:6px;color:white;border:none;cursor:pointer;flex:1;">开始评估</button>'
+        + '<button onclick="toggleRiskModal()" style="background:#21262d;padding:8px 20px;border-radius:6px;color:#c9d1d9;border:none;cursor:pointer;">取消</button></div>'
+        + '<div id="risk-result" style="margin-top:16px;"></div>'
+        + '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function runRiskAssessment() {
+    var productDesc = document.getElementById('risk-product').value.trim();
+    var patentIds = document.getElementById('risk-patents').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    var resultDiv = document.getElementById('risk-result');
+    if (!productDesc) { resultDiv.innerHTML = '<p style="color:#d29922;">请输入产品描述</p>'; return; }
+    if (patentIds.length === 0) { resultDiv.innerHTML = '<p style="color:#d29922;">请输入至少一个专利号</p>'; return; }
+    resultDiv.innerHTML = '<p style="color:#58a6ff;">⏳ 正在评估侵权风险...</p>';
+    try {
+        var resp = await fetch('/api/ai/risk', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({product_description: productDesc, patent_ids: patentIds}) });
+        var data = await resp.json();
+        if (data.status === 'ok') {
+            resultDiv.innerHTML = '<div style="padding:12px;background:#0d1117;border-radius:6px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto;">' + escapeHtml(data.assessment).replace(/\n/g, '<br>') + '</div>';
+        } else { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(data.error || '评估失败') + '</p>'; }
+    } catch(e) { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(e.message) + '</p>'; }
+}
+
 function toggleAllChecks(checked) {
     document.querySelectorAll('.batch-check').forEach(function(cb) { cb.checked = checked; });
 }
