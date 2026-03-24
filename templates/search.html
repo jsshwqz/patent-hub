@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 .search-container { display: grid; gap: 16px; }
 .panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
@@ -521,21 +522,28 @@ async function showStats() {
         const years = Array.isArray(data.years) ? data.years : [];
         document.getElementById('stats-content').innerHTML = `
             <p class="muted" style="margin-bottom:10px;">${t('stats.total')}: <strong>${Number(data.total || 0)}</strong></p>
-            <div class="stats-grid">
-                <div>
-                    <h4 style="margin-bottom:8px;">${t('stats.appTop')}</h4>
-                    ${renderBarList(applicants)}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="background:#0d1117;padding:12px;border-radius:8px;">
+                    <h4 style="color:#58a6ff;margin:0 0 8px;">${t('stats.year')}</h4>
+                    <canvas id="chart-year" height="200"></canvas>
                 </div>
-                <div>
-                    <h4 style="margin:10px 0 8px;">${t('stats.country')}</h4>
-                    ${renderBarList(countries)}
-                </div>
-                <div>
-                    <h4 style="margin:10px 0 8px;">${t('stats.year')}</h4>
-                    ${renderBarList(years)}
+                <div style="background:#0d1117;padding:12px;border-radius:8px;">
+                    <h4 style="color:#58a6ff;margin:0 0 8px;">${t('stats.country')}</h4>
+                    <canvas id="chart-country" height="200"></canvas>
                 </div>
             </div>
+            <div style="background:#0d1117;padding:12px;border-radius:8px;margin-top:16px;">
+                <h4 style="color:#58a6ff;margin:0 0 8px;">${t('stats.appTop')}</h4>
+                <canvas id="chart-applicant" height="160"></canvas>
+            </div>
         `;
+        // Render charts if Chart.js loaded
+        if (typeof Chart !== 'undefined') {
+            var chartOpts = {color:'#c9d1d9',borderColor:'#30363d'};
+            new Chart(document.getElementById('chart-year'),{type:'line',data:{labels:years.map(function(y){return y[0]}),datasets:[{label:t('stats.year'),data:years.map(function(y){return y[1]}),borderColor:'#58a6ff',backgroundColor:'rgba(88,166,255,0.1)',fill:true,tension:0.3}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b949e'}},y:{ticks:{color:'#8b949e'},beginAtZero:true}}}});
+            new Chart(document.getElementById('chart-country'),{type:'doughnut',data:{labels:countries.map(function(c){return c[0]}),datasets:[{data:countries.map(function(c){return c[1]}),backgroundColor:['#58a6ff','#3fb950','#d29922','#f85149','#8b5cf6','#f0883e','#33b3ae','#da3633']}]},options:{plugins:{legend:{position:'right',labels:{color:'#c9d1d9',font:{size:11}}}}}});
+            new Chart(document.getElementById('chart-applicant'),{type:'bar',data:{labels:applicants.map(function(a){return a[0].substring(0,15)}),datasets:[{label:t('stats.appTop'),data:applicants.map(function(a){return a[1]}),backgroundColor:'#3fb950'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b949e'}},y:{ticks:{color:'#8b949e',font:{size:10}}}}}});
+        }
     } catch (err) {
         document.getElementById('stats-content').innerHTML =
             `<p style="color:#f85149;">${t('alert.statsFail')}: ${escapeHtml(err.message)}</p>`;
