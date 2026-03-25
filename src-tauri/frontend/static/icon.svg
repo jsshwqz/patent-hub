@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#0d1117"/>
+  <rect x="120" y="80" width="200" height="280" rx="12" fill="#161b22" stroke="#30363d" stroke-width="6"/>
+  <line x1="150" y1="140" x2="290" y2="140" stroke="#58a6ff" stroke-width="8" stroke-linecap="round"/>
+  <line x1="150" y1="180" x2="270" y2="180" stroke="#8b949e" stroke-width="6" stroke-linecap="round"/>
+  <line x1="150" y1="210" x2="250" y2="210" stroke="#8b949e" stroke-width="6" stroke-linecap="round"/>
+  <line x1="150" y1="240" x2="280" y2="240" stroke="#8b949e" stroke-width="6" stroke-linecap="round"/>
+  <line x1="150" y1="270" x2="230" y2="270" stroke="#8b949e" stroke-width="6" stroke-linecap="round"/>
+  <line x1="150" y1="300" x2="260" y2="300" stroke="#8b949e" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="340" cy="300" r="70" fill="none" stroke="#58a6ff" stroke-width="12"/>
+  <line x1="390" y1="350" x2="440" y2="400" stroke="#58a6ff" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="340" cy="300" r="30" fill="#3fb950" opacity="0.3"/>
+  <text x="256" y="460" text-anchor="middle" font-family="Arial,sans-serif" font-size="48" font-weight="bold" fill="#58a6ff">Patent Hub</text>
+</svg>

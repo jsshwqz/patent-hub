@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设置 - Patent Hub</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="manifest" href="static/manifest.json">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="static/icon.svg" type="image/svg+xml">
+    <style>
+        .settings-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 30px;
+            background: #1e1e1e;
+            border-radius: 8px;
+        }
+        .setting-group {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 6px;
+        }
+        .setting-group h3 {
+            margin-top: 0;
+            color: #4a9eff;
+            font-size: 18px;
+        }
+        .setting-group p {
+            color: #999;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ccc;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4a9eff;
+        }
+        .btn-save {
+            background: #4a9eff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .btn-save:hover {
+            background: #3a8eef;
+        }
+        .status-message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status-message.success {
+            background: #1a4d2e;
+            color: #4ade80;
+            border: 1px solid #4ade80;
+        }
+        .status-message.error {
+            background: #4d1a1a;
+            color: #f87171;
+            border: 1px solid #f87171;
+        }
+        .help-link {
+            color: #4a9eff;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .help-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+<script src="static/api-config.js"></script>
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">🔍 Patent Hub</div>
+        <div class="nav-links">
+            <a href="index.html">首页</a>
+            <a href="search.html">专利检索</a>
+            <a href="idea.html">创意验证</a>
+            <a href="compare.html">专利对比</a>
+            <a href="ai.html">AI 助手</a>
+            <a href="settings.html" class="active">设置</a>
+        </div>
+        <button onclick="goBack()" class="back-btn" id="back-btn" style="display:none;margin-left:auto;background:#21262d;color:#c9d1d9;border:1px solid #30363d;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;">← 返回</button>
+    </nav>
+
+    <div class="settings-container">
+        <h2>系统设置</h2>
+
+        <div class="setting-group">
+            <h3>🔑 SerpAPI 配置（在线专利搜索）</h3>
+            <p>配置 SerpAPI Key 后可以搜索 Google Patents 的全球专利数据</p>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="text" id="serpapi-key" placeholder="输入你的 SerpAPI Key">
+                <a href="https://serpapi.com/manage-api-key" target="_blank" class="help-link">
+                    → 如何获取 SerpAPI Key？
+                </a>
+            </div>
+            <button class="btn-save" onclick="saveSerpApiKey()">保存 SerpAPI 配置</button>
+            <div id="serpapi-status" class="status-message"></div>
+        </div>
+
+        <div class="setting-group">
+            <h3>🤖 AI 配置（智能分析）</h3>
+            <p>配置 AI 服务用于专利智能分析、摘要生成、对比分析等功能</p>
+            
+            <div class="form-group">
+                <label>AI 服务商</label>
+                <select id="ai-provider" onchange="updateAiFields()">
+                    <option value="zhipu">智谱 AI (GLM-4)</option>
+                    <option value="openai">OpenAI (GPT)</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="ollama">Ollama (本地)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>API Base URL</label>
+                <input type="text" id="ai-base-url" placeholder="https://open.bigmodel.cn/api/paas/v4">
+            </div>
+
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="text" id="ai-api-key" placeholder="输入你的 AI API Key">
+            </div>
+
+            <div class="form-group">
+                <label>模型名称</label>
+                <input type="text" id="ai-model" placeholder="glm-4-flash">
+            </div>
+
+            <button class="btn-save" onclick="saveAiConfig()">保存 AI 配置</button>
+            <div id="ai-status" class="status-message"></div>
+        </div>
+
+        <div class="setting-group">
+            <h3>🔄 备用 AI（主 AI 失败时自动切换）</h3>
+            <p>配置备用 AI 服务商。当主 AI 不可用时自动降级到备用。支持最多 5 个备用。</p>
+            <div id="fallback-list"></div>
+            <button class="btn-save" style="background:#21262d;margin-top:8px;" onclick="addFallbackRow()">+ 添加备用 AI</button>
+            <button class="btn-save" onclick="saveFallbacks()">保存备用 AI 配置</button>
+            <div id="fallback-status" class="status-message"></div>
+        </div>
+
+        <div class="setting-group">
+            <h3>ℹ️ 当前配置状态</h3>
+            <p id="config-status">加载中...</p>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载时获取当前配置
+        let returnUrl = ''; // 记录返回地址
+        
+        window.onload = async function() {
+            // 从 URL 参数获取返回地址
+            const urlParams = new URLSearchParams(window.location.search);
+            returnUrl = urlParams.get('from') || document.referrer || '';
+            
+            // 显示/隐藏返回按钮
+            const backBtn = document.getElementById('back-btn');
+            if (returnUrl && !returnUrl.includes('/settings')) {
+                backBtn.style.display = 'block';
+            }
+            
+            try {
+                const res = await fetch('/api/settings');
+                if (res.ok) {
+                    const config = await res.json();
+                    document.getElementById('serpapi-key').value = config.serpapi_key || '';
+                    document.getElementById('ai-base-url').value = config.ai_base_url || '';
+                    document.getElementById('ai-api-key').value = config.ai_api_key || '';
+                    document.getElementById('ai-model').value = config.ai_model || '';
+
+                    updateConfigStatus(config);
+                }
+            } catch (e) {
+                console.error('Failed to load config:', e);
+            }
+        };
+        
+        // 返回上一页
+        function goBack() {
+            if (returnUrl && !returnUrl.includes('/settings')) {
+                window.location.href = returnUrl;
+            } else {
+                window.history.back();
+            }
+        }
+
+        function updateConfigStatus(config) {
+            const status = [];
+            if (config.serpapi_key && config.serpapi_key !== 'your-serpapi-key-here') {
+                status.push('✅ SerpAPI 已配置');
+            } else {
+                status.push('❌ SerpAPI 未配置（无法使用在线搜索）');
+            }
+            
+            if (config.ai_api_key) {
+                status.push('✅ AI 服务已配置');
+            } else {
+                status.push('❌ AI 服务未配置（无法使用智能分析）');
+            }
+            
+            document.getElementById('config-status').innerHTML = status.join('<br>');
+        }
+
+        function updateAiFields() {
+            const provider = document.getElementById('ai-provider').value;
+            const baseUrlInput = document.getElementById('ai-base-url');
+            const modelInput = document.getElementById('ai-model');
+            
+            const configs = {
+                zhipu: {
+                    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+                    model: 'glm-4-flash'
+                },
+                openai: {
+                    baseUrl: 'https://api.openai.com/v1',
+                    model: 'gpt-3.5-turbo'
+                },
+                deepseek: {
+                    baseUrl: 'https://api.deepseek.com/v1',
+                    model: 'deepseek-chat'
+                },
+                ollama: {
+                    baseUrl: 'http://localhost:11434/v1',
+                    model: 'llama2'
+                }
+            };
+            
+            if (configs[provider]) {
+                baseUrlInput.value = configs[provider].baseUrl;
+                modelInput.value = configs[provider].model;
+            }
+        }
+
+        async function saveSerpApiKey() {
+            const key = document.getElementById('serpapi-key').value.trim();
+            const statusEl = document.getElementById('serpapi-status');
+
+            if (!key) {
+                showStatus(statusEl, 'error', '请输入 API Key');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/settings/serpapi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: key })
+                });
+
+                if (res.ok) {
+                    showStatus(statusEl, 'success', '✅ SerpAPI 配置已保存！3 秒后返回...');
+                    // 如果有返回地址，3 秒后自动返回
+                    if (returnUrl && !returnUrl.includes('/settings')) {
+                        setTimeout(() => {
+                            window.location.href = returnUrl;
+                        }, 3000);
+                    }
+                } else {
+                    showStatus(statusEl, 'error', '保存失败，请重试');
+                }
+            } catch (e) {
+                showStatus(statusEl, 'error', '网络错误：' + e.message);
+            }
+        }
+
+        async function saveAiConfig() {
+            const baseUrl = document.getElementById('ai-base-url').value.trim();
+            const apiKey = document.getElementById('ai-api-key').value.trim();
+            const model = document.getElementById('ai-model').value.trim();
+            const statusEl = document.getElementById('ai-status');
+
+            if (!baseUrl || !apiKey || !model) {
+                showStatus(statusEl, 'error', '请填写完整的 AI 配置');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/settings/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model: model })
+                });
+
+                if (res.ok) {
+                    showStatus(statusEl, 'success', '✅ AI 配置已保存！3 秒后返回...');
+                    // 如果有返回地址，3 秒后自动返回
+                    if (returnUrl && !returnUrl.includes('/settings')) {
+                        setTimeout(() => {
+                            window.location.href = returnUrl;
+                        }, 3000);
+                    }
+                } else {
+                    showStatus(statusEl, 'error', '保存失败，请重试');
+                }
+            } catch (e) {
+                showStatus(statusEl, 'error', '网络错误：' + e.message);
+            }
+        }
+
+        function showStatus(element, type, message) {
+            element.className = 'status-message ' + type;
+            element.textContent = message;
+            element.style.display = 'block';
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 3000);
+        }
+
+        // ── Fallback AI Management ──
+        var fallbackCount = 0;
+        function addFallbackRow(name, url, key, model) {
+            if (fallbackCount >= 5) return;
+            fallbackCount++;
+            var i = fallbackCount;
+            var container = document.getElementById('fallback-list');
+            var presets = {
+                'openrouter': { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-2.0-flash-exp:free' },
+                'gemini': { name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-2.0-flash' },
+                'openai': { name: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' },
+                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }
+            };
+            var row = document.createElement('div');
+            row.style.cssText = 'padding:12px;margin:8px 0;background:#0d1117;border:1px solid #30363d;border-radius:6px;';
+            row.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+                + '<strong style="color:#58a6ff;">备用 AI #' + i + '</strong>'
+                + '<button onclick="this.parentElement.parentElement.remove();fallbackCount--;" style="background:#da3633;padding:2px 8px;font-size:0.8em;">删除</button></div>'
+                + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">服务商预设</label>'
+                + '<select onchange="applyPreset(this,' + i + ')" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;">'
+                + '<option value="">自定义</option><option value="openrouter">OpenRouter</option><option value="gemini">Google Gemini</option><option value="openai">OpenAI</option><option value="nvidia">NVIDIA</option><option value="deepseek">DeepSeek</option></select></div>'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">名称</label><input type="text" id="fb-name-' + i + '" value="' + (name||'') + '" placeholder="OpenRouter" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">Base URL</label><input type="text" id="fb-url-' + i + '" value="' + (url||'') + '" placeholder="https://..." style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '<div><label style="font-size:0.8em;color:#8b949e;">API Key</label><input type="text" id="fb-key-' + i + '" value="' + (key||'') + '" placeholder="sk-..." style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '<div style="grid-column:span 2;"><label style="font-size:0.8em;color:#8b949e;">模型</label><input type="text" id="fb-model-' + i + '" value="' + (model||'') + '" placeholder="model-name" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
+                + '</div>';
+            container.appendChild(row);
+        }
+        window.applyPreset = function(sel, idx) {
+            var presets = {
+                'openrouter': { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-2.0-flash-exp:free' },
+                'gemini': { name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-2.0-flash' },
+                'openai': { name: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' },
+                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }
+            };
+            var p = presets[sel.value];
+            if (p) {
+                document.getElementById('fb-name-' + idx).value = p.name;
+                document.getElementById('fb-url-' + idx).value = p.url;
+                document.getElementById('fb-model-' + idx).value = p.model;
+            }
+        };
+        async function saveFallbacks() {
+            var statusEl = document.getElementById('fallback-status');
+            var fallbacks = [];
+            for (var i = 1; i <= fallbackCount; i++) {
+                var nameEl = document.getElementById('fb-name-' + i);
+                if (!nameEl) continue;
+                fallbacks.push({
+                    name: nameEl.value,
+                    url: document.getElementById('fb-url-' + i).value,
+                    key: document.getElementById('fb-key-' + i).value,
+                    model: document.getElementById('fb-model-' + i).value
+                });
+            }
+            try {
+                var resp = await fetch('/api/settings/fallbacks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fallbacks: fallbacks })
+                });
+                var data = await resp.json();
+                showStatus(statusEl, data.status === 'ok' ? 'success' : 'error', data.message || '已保存');
+            } catch(e) {
+                showStatus(statusEl, 'error', '保存失败: ' + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
