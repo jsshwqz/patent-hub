@@ -5,22 +5,54 @@ mod patent;
 mod routes;
 
 use axum::{
+    body::Body,
     extract::DefaultBodyLimit,
-    http::HeaderValue,
+    http::{HeaderValue, Response, StatusCode},
     routing::{get, post},
     Router,
 };
+use rust_embed::Embed;
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
-use tower_http::services::ServeDir;
 use tower_http::set_header::SetResponseHeaderLayer;
+
+#[derive(Embed)]
+#[folder = "static/"]
+struct StaticAssets;
+
+async fn serve_static(axum::extract::Path(path): axum::extract::Path<String>) -> Response<Body> {
+    match StaticAssets::get(&path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(&path).first_or_octet_stream();
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", mime.as_ref())
+                .header("Cache-Control", "public, max-age=3600")
+                .body(Body::from(content.data.to_vec()))
+                .unwrap()
+        }
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from("Not found"))
+            .unwrap(),
+    }
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let _ = dotenvy::dotenv_override();
     tracing_subscriber::fmt::init();
 
-    let db = db::Database::init("patent_hub.db")?;
+    // Use app data directory on Android, current dir otherwise
+    let db_path = if cfg!(target_os = "android") {
+        let data_dir = std::env::var("HOME")
+            .or_else(|_| std::env::var("TMPDIR"))
+            .unwrap_or_else(|_| "/data/local/tmp".to_string());
+        format!("{}/patent_hub.db", data_dir)
+    } else {
+        "patent_hub.db".to_string()
+    };
+    let db = db::Database::init(&db_path)?;
     let config = routes::AppConfig::from_env();
     let state = routes::AppState {
         db: Arc::new(db),
@@ -92,8 +124,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/tags", get(routes::api_list_all_tags))
         // File upload
         .route("/api/upload/compare", post(routes::api_upload_compare))
-        // Static files
-        .nest_service("/static", ServeDir::new("static"))
+        // Static files (embedded in binary)
+        .route("/static/*path", get(serve_static))
         // Body size limit (10MB)
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
         // Security headers

@@ -43,6 +43,8 @@ pdf-extract = "0.7"
 base64 = "0.22"
 rust_xlsxwriter = "0.79"
 regex = "1.12.3"
+rust-embed = { version = "8.11.0", features = ["mime-guess"] }
+mime_guess = "2.0.5"
 
 [dev-dependencies]
 tempfile = "3"
