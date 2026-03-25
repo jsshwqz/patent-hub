@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patent Hub</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0d1117; color:#c9d1d9; font-family:system-ui,-apple-system,sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+.logo { font-size:2em; font-weight:bold; color:#58a6ff; margin-bottom:8px; }
+.subtitle { color:#8b949e; margin-bottom:32px; font-size:0.95em; }
+.card { background:#161b22; border:1px solid #30363d; border-radius:12px; padding:24px; width:100%; max-width:400px; }
+h2 { color:#58a6ff; font-size:1.1em; margin-bottom:16px; }
+label { display:block; color:#8b949e; font-size:0.85em; margin-bottom:6px; }
+input { width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#c9d1d9; font-size:1em; margin-bottom:16px; }
+input:focus { outline:none; border-color:#58a6ff; }
+.btn { width:100%; padding:12px; background:#238636; border:none; border-radius:8px; color:white; font-size:1em; font-weight:bold; cursor:pointer; margin-bottom:8px; }
+.btn:active { background:#2ea043; }
+.btn-secondary { background:#21262d; border:1px solid #30363d; }
+.hint { color:#8b949e; font-size:0.8em; text-align:center; margin-top:16px; line-height:1.6; }
+.status { color:#f85149; font-size:0.85em; margin-bottom:12px; display:none; text-align:center; }
+.recent { margin-top:16px; }
+.recent-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#0d1117; border-radius:6px; margin-bottom:6px; cursor:pointer; }
+.recent-item:hover { border:1px solid #58a6ff; }
+.recent-item span { color:#c9d1d9; font-size:0.9em; }
+.recent-item small { color:#8b949e; font-size:0.75em; }
+</style>
+</head>
+<body>
+<div class="logo">Patent Hub</div>
+<div class="subtitle">智能专利搜索与分析平台</div>
+<div class="card">
+  <h2>连接服务器</h2>
+  <div id="status" class="status"></div>
+  <label>服务器地址 Server Address</label>
+  <input type="text" id="server-addr" placeholder="192.168.1.100:3000" value="">
+  <button class="btn" onclick="connectServer()">连接 Connect</button>
+  <button class="btn btn-secondary" onclick="tryLocalhost()">本机模式 Localhost</button>
+  <div id="recent-list" class="recent"></div>
+</div>
+<div class="hint">
+  在电脑上运行 Patent Hub 后<br>
+  输入电脑的 IP 地址和端口<br>
+  Run Patent Hub on your PC, then enter its IP
+</div>
+
+<script>
+var STORAGE_KEY = 'patent_hub_servers';
+
+function getRecent() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveRecent(addr) {
+  var list = getRecent().filter(function(a) { return a !== addr; });
+  list.unshift(addr);
+  if (list.length > 5) list = list.slice(0, 5);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+function renderRecent() {
+  var list = getRecent();
+  var container = document.getElementById('recent-list');
+  if (list.length === 0) { container.innerHTML = ''; return; }
+  var html = '<label style="margin-top:8px;">历史记录 Recent</label>';
+  list.forEach(function(addr) {
+    html += '<div class="recent-item" onclick="quickConnect(\'' + addr + '\')">';
+    html += '<span>' + addr + '</span>';
+    html += '<small>点击连接</small></div>';
+  });
+  container.innerHTML = html;
+}
+function showStatus(msg, isError) {
+  var el = document.getElementById('status');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.color = isError ? '#f85149' : '#3fb950';
+}
+
+async function connectServer() {
+  var addr = document.getElementById('server-addr').value.trim();
+  if (!addr) { showStatus('请输入服务器地址', true); return; }
+  if (!addr.includes(':')) addr += ':3000';
+  if (!addr.startsWith('http')) addr = 'http://' + addr;
+
+  showStatus('连接中...', false);
+  try {
+    var resp = await fetch(addr + '/api/settings', { signal: AbortSignal.timeout(5000) });
+    if (resp.ok) {
+      saveRecent(addr);
+      window.location.href = addr + '/search';
+    } else {
+      showStatus('服务器响应异常: ' + resp.status, true);
+    }
+  } catch(e) {
+    showStatus('无法连接: ' + e.message, true);
+  }
+}
+
+function tryLocalhost() {
+  document.getElementById('server-addr').value = '127.0.0.1:3000';
+  connectServer();
+}
+
+function quickConnect(addr) {
+  document.getElementById('server-addr').value = addr.replace(/^https?:\/\//, '');
+  connectServer();
+}
+
+// Init
+renderRecent();
+// Auto-try last successful server
+var recent = getRecent();
+if (recent.length > 0) {
+  document.getElementById('server-addr').value = recent[0].replace(/^https?:\/\//, '');
+}
+</script>
+</body>
+</html>

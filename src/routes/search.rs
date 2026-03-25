@@ -492,7 +492,6 @@ pub async fn api_export_csv(
         .into_response()
 }
 
-#[cfg(not(target_os = "android"))]
 pub async fn api_export_xlsx(
     State(s): State<AppState>,
     Json(req): Json<SearchRequest>,
@@ -571,10 +570,6 @@ pub async fn api_export_xlsx(
     }
 }
 
-#[cfg(target_os = "android")]
-pub async fn api_export_xlsx() -> impl IntoResponse {
-    (StatusCode::NOT_IMPLEMENTED, "Excel export not available on Android").into_response()
-}
 
 pub(crate) fn serp_to_patent(r: &serde_json::Value) -> Patent {
     let pub_num = r["publication_number"]

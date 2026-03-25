@@ -112,14 +112,8 @@ pub async fn api_upload_compare(
 }
 
 /// Extract text from a PDF file using pdf-extract
-#[cfg(not(target_os = "android"))]
 fn extract_pdf_text(data: &[u8]) -> Result<String, String> {
     pdf_extract::extract_text_from_mem(data).map_err(|e| format!("{}", e))
-}
-
-#[cfg(target_os = "android")]
-fn extract_pdf_text(_data: &[u8]) -> Result<String, String> {
-    Err("PDF extraction not supported on Android".to_string())
 }
 
 /// Use AI vision (GLM-4V or compatible) to describe an image

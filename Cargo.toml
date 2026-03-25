@@ -39,10 +39,8 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 urlencoding = "2"
 uuid = { version = "1", features = ["v4"] }
-base64 = "0.22"
-
-[target.'cfg(not(target_os = "android"))'.dependencies]
 pdf-extract = "0.7"
+base64 = "0.22"
 rust_xlsxwriter = "0.79"
 regex = "1.12.3"
 rust-embed = { version = "8.11.0", features = ["mime-guess"] }
