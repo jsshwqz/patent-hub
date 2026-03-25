@@ -175,7 +175,24 @@ jobs:
           cargo tauri android init
           cargo tauri android build --apk
 
+      - name: Find APK
+        id: find-apk
+        run: |
+          echo "Searching for APK files..."
+          find . -name "*.apk" -type f 2>/dev/null
+          APK=$(find . -name "*.apk" -type f | head -1)
+          if [ -n "$APK" ]; then
+            cp "$APK" patent-hub-android.apk
+            echo "apk_found=true" >> $GITHUB_OUTPUT
+            echo "Found APK: $APK"
+          else
+            echo "No APK found, checking for AAB..."
+            find . -name "*.aab" -type f 2>/dev/null
+            echo "apk_found=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload APK
+        if: steps.find-apk.outputs.apk_found == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+          files: patent-hub-android.apk
