@@ -5,6 +5,10 @@ use dioxus::prelude::*;
 const STYLE: &str = include_str!("../assets/style.css");
 
 fn main() {
+    // Catch panics for debugging on mobile
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("PANIC: {info}");
+    }));
     dioxus::launch(app);
 }
 

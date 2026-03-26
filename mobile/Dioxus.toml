@@ -7,9 +7,11 @@ out_dir = "dist"
 package = "com.patenthub.app"
 min_sdk_version = 24
 target_sdk_version = 34
+permissions = ["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE"]
 
 [web.app]
 title = "Patent Hub"
 
 [bundle]
 identifier = "com.patenthub.app"
+icon = ["assets/icon.png"]
