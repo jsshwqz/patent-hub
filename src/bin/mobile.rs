@@ -74,9 +74,9 @@ fn start_android_webview() {
         .build(&event_loop)
         .unwrap();
 
-    let _webview = WebViewBuilder::new(&window)
+    let _webview = WebViewBuilder::new()
         .with_url("http://127.0.0.1:3000/search")
-        .build()
+        .build(&window)
         .unwrap();
 
     event_loop.run(move |event, _, control_flow| {
