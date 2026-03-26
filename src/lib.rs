@@ -3,6 +3,30 @@ pub mod db;
 pub mod patent;
 pub mod skill_router;
 
+// ── Android JNI 入口 ─────────────────────────────────────────────────────────
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn Java_com_patenthub_app_MainActivity_startServer(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    db_path: jni::objects::JString,
+) {
+    let db_path: String = env
+        .get_string(&db_path)
+        .map(|s| s.into())
+        .unwrap_or_else(|_| "/data/local/tmp/patent_hub.db".to_string());
+
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        rt.block_on(async {
+            eprintln!("[Patent Hub] 启动服务器, 数据库: {}", db_path);
+            if let Err(e) = start_server(&db_path).await {
+                eprintln!("[Patent Hub] 服务器错误: {}", e);
+            }
+        });
+    });
+}
+
 mod error;
 mod routes;
 
