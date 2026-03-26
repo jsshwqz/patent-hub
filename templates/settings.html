@@ -113,31 +113,40 @@
         <h2>系统设置</h2>
 
         <div class="setting-group">
-            <h3>🔑 SerpAPI 配置（在线专利搜索）</h3>
-            <p>配置 SerpAPI Key 后可以搜索 Google Patents 的全球专利数据</p>
+            <h3>🔑 专利搜索配置（可选）</h3>
+            <p>配置 SerpAPI Key 后可搜索 Google Patents 全球专利数据。未配置时仍可使用本地专利库。</p>
+            <p style="color:#f0ad4e;font-size:13px;">SerpAPI 免费版每月 100 次搜索，足够个人使用。</p>
             <div class="form-group">
-                <label>API Key</label>
+                <label>SerpAPI Key</label>
                 <input type="text" id="serpapi-key" placeholder="输入你的 SerpAPI Key">
                 <a href="https://serpapi.com/manage-api-key" target="_blank" class="help-link">
-                    → 如何获取 SerpAPI Key？
+                    → 注册获取免费 Key（每月 100 次）
                 </a>
             </div>
-            <button class="btn-save" onclick="saveSerpApiKey()">保存 SerpAPI 配置</button>
+            <button class="btn-save" onclick="saveSerpApiKey()">保存搜索配置</button>
             <div id="serpapi-status" class="status-message"></div>
         </div>
 
         <div class="setting-group">
             <h3>🤖 AI 配置（智能分析）</h3>
-            <p>配置 AI 服务用于专利智能分析、摘要生成、对比分析等功能</p>
-            
+            <p>配置 AI 服务用于专利智能分析、创意验证、摘要生成等功能</p>
+
             <div class="form-group">
                 <label>AI 服务商</label>
                 <select id="ai-provider" onchange="updateAiFields()">
-                    <option value="zhipu">智谱 AI (GLM-4)</option>
-                    <option value="openai">OpenAI (GPT)</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="ollama">Ollama (本地)</option>
+                    <option value="zhipu">智谱 GLM-4.7-Flash（免费）</option>
+                    <option value="zhipu-plus">智谱 GLM-4-Plus（付费，更强）</option>
+                    <option value="deepseek">DeepSeek（低价）</option>
+                    <option value="openrouter">OpenRouter（多模型聚合）</option>
+                    <option value="gemini">Google Gemini（免费额度）</option>
+                    <option value="openai">OpenAI GPT</option>
+                    <option value="claude">Claude (Anthropic)</option>
+                    <option value="ollama">Ollama（本地部署）</option>
+                    <option value="custom">自定义（任意 OpenAI 兼容 API）</option>
                 </select>
+            </div>
+
+            <div id="provider-guide" style="margin:10px 0;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:4px;font-size:13px;color:#8b949e;display:none;">
             </div>
 
             <div class="form-group">
@@ -152,7 +161,7 @@
 
             <div class="form-group">
                 <label>模型名称</label>
-                <input type="text" id="ai-model" placeholder="glm-4-flash">
+                <input type="text" id="ai-model" placeholder="glm-4.7-flash">
             </div>
 
             <button class="btn-save" onclick="saveAiConfig()">保存 AI 配置</button>
@@ -203,6 +212,7 @@
             } catch (e) {
                 console.error('Failed to load config:', e);
             }
+            updateAiFields();
         };
         
         // 返回上一页
@@ -235,29 +245,82 @@
             const provider = document.getElementById('ai-provider').value;
             const baseUrlInput = document.getElementById('ai-base-url');
             const modelInput = document.getElementById('ai-model');
-            
+            const guideEl = document.getElementById('provider-guide');
+
             const configs = {
-                zhipu: {
+                'zhipu': {
                     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-                    model: 'glm-4-flash'
+                    model: 'glm-4.7-flash',
+                    guide: '💡 <b>完全免费</b>，国内直连，推荐首选！<br>'
+                        + '① 打开 <a href="https://open.bigmodel.cn/" target="_blank" style="color:#4a9eff;">open.bigmodel.cn</a> 注册（手机号）<br>'
+                        + '② 进入控制台 → API Keys → 创建 Key<br>'
+                        + '③ 复制 Key 粘贴到下方输入框'
                 },
-                openai: {
-                    baseUrl: 'https://api.openai.com/v1',
-                    model: 'gpt-3.5-turbo'
+                'zhipu-plus': {
+                    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+                    model: 'glm-4-plus',
+                    guide: '💰 付费模型，效果更好。注册同上，新用户送额度。<br>'
+                        + '<a href="https://open.bigmodel.cn/" target="_blank" style="color:#4a9eff;">→ 注册智谱 AI</a>'
                 },
-                deepseek: {
+                'deepseek': {
                     baseUrl: 'https://api.deepseek.com/v1',
-                    model: 'deepseek-chat'
+                    model: 'deepseek-chat',
+                    guide: '💰 低价高质量，国内直连。<br>'
+                        + '① 打开 <a href="https://platform.deepseek.com/" target="_blank" style="color:#4a9eff;">platform.deepseek.com</a> 注册<br>'
+                        + '② API Keys → 创建 → 复制粘贴到下方'
                 },
-                ollama: {
+                'openrouter': {
+                    baseUrl: 'https://openrouter.ai/api/v1',
+                    model: 'google/gemini-2.0-flash-exp:free',
+                    guide: '💡 聚合多家模型，部分免费。需科学上网。<br>'
+                        + '① 打开 <a href="https://openrouter.ai/keys" target="_blank" style="color:#4a9eff;">openrouter.ai</a> 用 Google 账号登录<br>'
+                        + '② 创建 Key → 粘贴到下方<br>'
+                        + '③ 免费模型后缀带 :free'
+                },
+                'gemini': {
+                    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+                    model: 'gemini-2.0-flash',
+                    guide: '💡 免费额度大（每分钟 15 次）。需科学上网。<br>'
+                        + '① 打开 <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#4a9eff;">Google AI Studio</a><br>'
+                        + '② 创建 API Key → 粘贴到下方'
+                },
+                'openai': {
+                    baseUrl: 'https://api.openai.com/v1',
+                    model: 'gpt-4o-mini',
+                    guide: '💰 付费，需科学上网。<br>'
+                        + '<a href="https://platform.openai.com/api-keys" target="_blank" style="color:#4a9eff;">→ 获取 OpenAI API Key</a>'
+                },
+                'claude': {
+                    baseUrl: 'https://api.anthropic.com/v1',
+                    model: 'claude-sonnet-4-6',
+                    guide: '💰 付费，需科学上网。<br>'
+                        + '<a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#4a9eff;">→ 获取 Claude API Key</a><br>'
+                        + '⚠️ Claude API 格式与 OpenAI 不完全兼容，建议通过 OpenRouter 使用'
+                },
+                'ollama': {
                     baseUrl: 'http://localhost:11434/v1',
-                    model: 'llama2'
+                    model: 'qwen2.5:7b',
+                    guide: '💻 本地部署，完全免费，需电脑运行 Ollama。手机端不可用。<br>'
+                        + '<a href="https://ollama.ai/" target="_blank" style="color:#4a9eff;">→ 下载 Ollama</a>'
+                },
+                'custom': {
+                    baseUrl: '',
+                    model: '',
+                    guide: '🔧 填写任意 OpenAI 兼容 API 的地址、Key 和模型名。<br>'
+                        + '适用于私有部署或其他未列出的 AI 服务商。'
                 }
             };
-            
-            if (configs[provider]) {
-                baseUrlInput.value = configs[provider].baseUrl;
-                modelInput.value = configs[provider].model;
+
+            const cfg = configs[provider];
+            if (cfg) {
+                if (provider !== 'custom') {
+                    baseUrlInput.value = cfg.baseUrl;
+                    modelInput.value = cfg.model;
+                }
+                guideEl.innerHTML = cfg.guide;
+                guideEl.style.display = 'block';
+            } else {
+                guideEl.style.display = 'none';
             }
         }
 
@@ -344,11 +407,12 @@
             var i = fallbackCount;
             var container = document.getElementById('fallback-list');
             var presets = {
+                'zhipu': { name: '智谱 GLM（免费）', url: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash' },
+                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
                 'openrouter': { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-2.0-flash-exp:free' },
                 'gemini': { name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-2.0-flash' },
                 'openai': { name: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' },
-                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }
+                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' }
             };
             var row = document.createElement('div');
             row.style.cssText = 'padding:12px;margin:8px 0;background:#0d1117;border:1px solid #30363d;border-radius:6px;';
@@ -358,7 +422,7 @@
                 + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
                 + '<div><label style="font-size:0.8em;color:#8b949e;">服务商预设</label>'
                 + '<select onchange="applyPreset(this,' + i + ')" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;">'
-                + '<option value="">自定义</option><option value="openrouter">OpenRouter</option><option value="gemini">Google Gemini</option><option value="openai">OpenAI</option><option value="nvidia">NVIDIA</option><option value="deepseek">DeepSeek</option></select></div>'
+                + '<option value="">自定义</option><option value="zhipu">智谱 GLM（免费）</option><option value="deepseek">DeepSeek</option><option value="openrouter">OpenRouter</option><option value="gemini">Google Gemini</option><option value="openai">OpenAI</option><option value="nvidia">NVIDIA</option></select></div>'
                 + '<div><label style="font-size:0.8em;color:#8b949e;">名称</label><input type="text" id="fb-name-' + i + '" value="' + (name||'') + '" placeholder="OpenRouter" style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
                 + '<div><label style="font-size:0.8em;color:#8b949e;">Base URL</label><input type="text" id="fb-url-' + i + '" value="' + (url||'') + '" placeholder="https://..." style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
                 + '<div><label style="font-size:0.8em;color:#8b949e;">API Key</label><input type="text" id="fb-key-' + i + '" value="' + (key||'') + '" placeholder="sk-..." style="width:100%;padding:4px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;"></div>'
@@ -368,11 +432,12 @@
         }
         window.applyPreset = function(sel, idx) {
             var presets = {
+                'zhipu': { name: '智谱 GLM（免费）', url: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash' },
+                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
                 'openrouter': { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1', model: 'google/gemini-2.0-flash-exp:free' },
                 'gemini': { name: 'Google Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai/', model: 'gemini-2.0-flash' },
                 'openai': { name: 'OpenAI', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' },
-                'deepseek': { name: 'DeepSeek', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' }
+                'nvidia': { name: 'NVIDIA', url: 'https://integrate.api.nvidia.com/v1', model: 'meta/llama-3.1-405b-instruct' }
             };
             var p = presets[sel.value];
             if (p) {
