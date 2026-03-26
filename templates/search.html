@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Patent Search - Patent Hub</title>
+<title>专利检索 - Patent Hub</title>
 <link rel="stylesheet" href="/static/style.css?v={{timestamp}}">
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#0d1117">
@@ -65,7 +65,7 @@
 <a href="/" class="logo">Patent Hub</a>
 <div class="nav-links">
 <a href="/search" class="active" data-i18n="nav.search"></a>
-<a href="/idea">创意验证</a>
+<a href="/idea" data-i18n="nav.idea"></a>
 <a href="/compare" data-i18n="nav.compare"></a>
 <a href="/ai" data-i18n="nav.ai"></a>
 <a href="/settings?from=/search" data-i18n="nav.settings"></a>
@@ -112,10 +112,10 @@
 <input type="date" id="date-from" data-i18n-title="date.from">
 <input type="date" id="date-to" data-i18n-title="date.to">
 <select id="page-size">
-<option value="10">10 / page</option>
-<option value="20" selected>20 / page</option>
-<option value="50">50 / page</option>
-<option value="100">100 / page</option>
+<option value="10">每页 10 条</option>
+<option value="20" selected>每页 20 条</option>
+<option value="50">每页 50 条</option>
+<option value="100">每页 100 条</option>
 </select>
 <button onclick="doSearch(1)" data-i18n="btn.search"></button>
 <button class="btn-secondary" onclick="showStats()" data-i18n="btn.stats"></button>
@@ -155,6 +155,7 @@ let currentLang = 'zh';
 const I18N = {
   zh: {
     'nav.search': '搜索',
+    'nav.idea': '创意验证',
     'nav.compare': '对比',
     'nav.ai': 'AI 助手',
     'nav.settings': '设置',
@@ -206,6 +207,7 @@ const I18N = {
   },
   en: {
     'nav.search': 'Search',
+    'nav.idea': 'Idea Validation',
     'nav.compare': 'Compare',
     'nav.ai': 'AI',
     'nav.settings': 'Settings',
@@ -380,13 +382,13 @@ function renderResults(data, page, pageSize) {
                     <input type="checkbox" class="batch-check" data-id="${escapeHtml(p.id)}" style="width:16px;height:16px;cursor:pointer;">
                 </label>
                 <div style="flex:1;">
-                    <h3><a href="/patent/${escapeHtml(p.id)}">${escapeHtml(p.title || 'Untitled')}</a></h3>
+                    <h3><a href="/patent/${escapeHtml(p.id)}">${escapeHtml(p.title || '无标题')}</a></h3>
                     <div class="meta-row">
-                        <span>${t('meta.patent')}: ${escapeHtml(p.patent_number || 'N/A')}</span>
-                        <span>${t('meta.applicant')}: ${escapeHtml(p.applicant || 'N/A')}</span>
-                        <span>${t('meta.inventor')}: ${escapeHtml(p.inventor || 'N/A')}</span>
-                        <span>${t('meta.filing')}: ${escapeHtml(p.filing_date || 'N/A')}</span>
-                        <span>${t('meta.country')}: ${escapeHtml(p.country || 'N/A')}</span>
+                        <span>${t('meta.patent')}: ${escapeHtml(p.patent_number || '暂无')}</span>
+                        <span>${t('meta.applicant')}: ${escapeHtml(p.applicant || '暂无')}</span>
+                        <span>${t('meta.inventor')}: ${escapeHtml(p.inventor || '暂无')}</span>
+                        <span>${t('meta.filing')}: ${escapeHtml(p.filing_date || '暂无')}</span>
+                        <span>${t('meta.country')}: ${escapeHtml(p.country || '暂无')}</span>
                     </div>
                     <p class="patent-abstract">${escapeHtml((p.abstract_text || '').slice(0, 260))}${(p.abstract_text || '').length > 260 ? '...' : ''}</p>
                 </div>
@@ -491,7 +493,7 @@ function renderBarList(items) {
     if (!items.length) return `<p class="muted">${t('stats.empty')}</p>`;
     const max = Math.max(...items.map((x) => Number(x[1] || 0)), 1);
     return items.map((item) => {
-        const label = escapeHtml(item[0] || 'Unknown');
+        const label = escapeHtml(item[0] || '未知');
         const value = Number(item[1] || 0);
         const width = Math.max(4, (value / max) * 100);
         return `<div class="bar-item">

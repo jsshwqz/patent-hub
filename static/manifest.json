@@ -1,7 +1,7 @@
 {
   "name": "Patent Hub",
   "short_name": "PatentHub",
-  "description": "专利搜索与AI分析平台 / Patent Search & AI Analysis",
+  "description": "专利搜索与 AI 分析平台 / Patent Search & AI Analysis",
   "lang": "zh-CN",
   "start_url": "/search",
   "scope": "/",

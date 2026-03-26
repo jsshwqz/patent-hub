@@ -27,6 +27,30 @@ pub extern "C" fn Java_com_patenthub_app_MainActivity_startServer(
     });
 }
 
+// ── iOS C FFI 入口 ──────────────────────────────────────────────────────────
+#[cfg(target_os = "ios")]
+#[no_mangle]
+pub extern "C" fn patent_hub_start_server(db_path: *const std::os::raw::c_char) {
+    let db_path = if db_path.is_null() {
+        "patent_hub.db".to_string()
+    } else {
+        unsafe { std::ffi::CStr::from_ptr(db_path) }
+            .to_str()
+            .unwrap_or("patent_hub.db")
+            .to_string()
+    };
+
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        rt.block_on(async {
+            eprintln!("[Patent Hub] 启动服务器, 数据库: {}", db_path);
+            if let Err(e) = start_server(&db_path).await {
+                eprintln!("[Patent Hub] 服务器错误: {}", e);
+            }
+        });
+    });
+}
+
 mod error;
 mod routes;
 

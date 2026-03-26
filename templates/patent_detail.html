@@ -342,10 +342,10 @@
                 let html = '';
                 data.similar.forEach(p => {
                     html += '<div style="padding: 12px; background: #0d1117; border-radius: 6px; margin-bottom: 12px;">'
-                        + '<h4 style="margin: 0 0 8px 0;"><a href="/patent/' + encodeURIComponent(p.id) + '" style="color: #58a6ff;">' + escapeHtml(p.title || 'Untitled') + '</a></h4>'
+                        + '<h4 style="margin: 0 0 8px 0;"><a href="/patent/' + encodeURIComponent(p.id) + '" style="color: #58a6ff;">' + escapeHtml(p.title || '无标题') + '</a></h4>'
                         + '<div style="color: #8b949e; font-size: 13px;">'
-                        + '<span>' + escapeHtml(p.patent_number || 'N/A') + '</span> | '
-                        + '<span>' + escapeHtml(p.applicant || 'N/A') + '</span>'
+                        + '<span>' + escapeHtml(p.patent_number || '暂无') + '</span> | '
+                        + '<span>' + escapeHtml(p.applicant || '暂无') + '</span>'
                         + '</div></div>';
                 });
                 document.getElementById('similar-list').innerHTML = html;

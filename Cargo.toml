@@ -9,7 +9,7 @@ repository = "https://github.com/jsshwqz/patent-hub"
 [lib]
 name = "patent_hub"
 path = "src/lib.rs"
-crate-type = ["lib", "cdylib"]
+crate-type = ["lib", "cdylib", "staticlib"]
 
 [[bin]]
 name = "patent-hub"

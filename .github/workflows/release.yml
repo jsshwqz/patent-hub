@@ -340,3 +340,55 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: patent-hub-android.apk
+
+  build-ios:
+    name: 构建 iOS IPA
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ios-aarch64
+
+      - name: 交叉编译 Rust 静态库（staticlib）
+        run: |
+          cargo build --release --lib --target aarch64-apple-ios
+          ls -la target/aarch64-apple-ios/release/libpatent_hub.a
+
+      - name: 准备 Xcode 项目并构建 IPA
+        run: |
+          cd ios-app
+
+          # 将 Rust 静态库复制到 Xcode 项目引用位置
+          mkdir -p PatentHub/libs
+          cp ../target/aarch64-apple-ios/release/libpatent_hub.a PatentHub/libs/
+
+          # 构建 archive（无签名，用于侧载或企业分发）
+          xcodebuild archive \
+            -project PatentHub.xcodeproj \
+            -scheme PatentHub \
+            -configuration Release \
+            -archivePath build/PatentHub.xcarchive \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO
+
+          # 从 archive 生成 IPA
+          mkdir -p build/Payload
+          cp -r build/PatentHub.xcarchive/Products/Applications/PatentHub.app build/Payload/
+          cd build && zip -r ../../patent-hub-ios.ipa Payload/
+          cd ../..
+          echo "IPA 大小: $(stat -f%z patent-hub-ios.ipa) bytes"
+
+      - name: Upload IPA
+        uses: softprops/action-gh-release@v2
+        with:
+          files: patent-hub-ios.ipa

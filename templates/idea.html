@@ -99,7 +99,7 @@
                 </div>
                 <div class="form-group">
                     <label data-i18n="idea.descLabel"></label>
-                    <textarea id="idea-desc" placeholder=""></textarea>
+                    <textarea id="idea-desc" data-i18n-placeholder="idea.descPlaceholder"></textarea>
                 </div>
                 <div class="btn-row">
                     <button class="btn-primary" id="submit-btn" onclick="submitIdea()" data-i18n="idea.submit"></button>
@@ -456,7 +456,7 @@
                     '<span style="font-size:0.8em; color:#58a6ff; font-weight:bold;">🤖 AI</span>' +
                     '<div style="color:#c9d1d9; margin-top:4px; white-space:pre-wrap; line-height:1.6;">' + renderMarkdown(data.message.content) + '</div></div>';
             } else {
-                container.innerHTML += '<div style="padding:10px; color:#f85149;">错误: ' + esc(data.error || 'Unknown error') + '</div>';
+                container.innerHTML += '<div style="padding:10px; color:#f85149;">错误: ' + esc(data.error || '未知错误') + '</div>';
             }
             container.scrollTop = container.scrollHeight;
         } catch (e) {
@@ -482,7 +482,7 @@
                 sumDiv.innerHTML = '<div style="font-size:0.8em; color:#58a6ff; margin-bottom:4px; font-weight:bold;">📋 讨论总结</div>' +
                     '<div style="color:#c9d1d9; font-size:0.9em; line-height:1.6;">' + renderMarkdown(data.summary) + '</div>';
             } else {
-                alert(data.error || 'Failed to summarize');
+                alert(data.error || '生成总结失败');
             }
         } catch(e) {
             alert('请求失败: ' + e.message);

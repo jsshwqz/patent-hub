@@ -1,12 +1,12 @@
-# API Documentation / API 文档
+# API 文档 / API Documentation
 
-## Base URL / 基础 URL
+## 基础 URL / Base URL
 
 ```
 http://127.0.0.1:3000
 ```
 
-## Notes / 说明
+## 说明 / Notes
 
 - 搜索历史为前端 `localStorage`，没有 `/api/search/history` 接口。
 - 详情页是页面路由 `GET /patent/:id`，不是 JSON API。
@@ -14,7 +14,7 @@ http://127.0.0.1:3000
 
 ---
 
-## Page Routes / 页面路由
+## 页面路由 / Page Routes
 
 | Method | Path | Description |
 |---|---|---|
@@ -29,9 +29,9 @@ http://127.0.0.1:3000
 
 ---
 
-## Search APIs / 搜索接口
+## 搜索接口 / Search APIs
 
-### 1) Local Search / 本地搜索
+### 1) 本地搜索 / Local Search
 
 **POST** `/api/search`
 
@@ -84,7 +84,7 @@ Response:
 }
 ```
 
-### 2) Online Search / 在线搜索
+### 2) 在线搜索 / Online Search
 
 **POST** `/api/search/online`
 
@@ -114,7 +114,7 @@ Response（本地回落）:
 }
 ```
 
-### 3) Stats / 统计
+### 3) 统计 / Stats
 
 **POST** `/api/search/stats`
 
@@ -131,13 +131,13 @@ Response:
 }
 ```
 
-### 4) Export CSV / 导出 CSV
+### 4) 导出 CSV / Export CSV
 
 **POST** `/api/search/export`
 
 Request 与 `/api/search` 相同，返回 `text/csv` 文件流。
 
-### 5) AI Analyze Search Results / AI 分析搜索结果
+### 5) AI 分析搜索结果 / AI Analyze Search Results
 
 **POST** `/api/search/analyze`
 
@@ -164,9 +164,9 @@ Response:
 
 ---
 
-## Patent APIs / 专利接口
+## 专利接口 / Patent APIs
 
-### 1) Fetch Patent by Number / 按专利号抓取
+### 1) 按专利号抓取 / Fetch Patent by Number
 
 **POST** `/api/patent/fetch`
 
@@ -181,7 +181,7 @@ Request:
 
 `source`: `epo | uspto`（默认 `epo`）
 
-### 2) Import Patents / 批量导入
+### 2) 批量导入 / Import Patents
 
 **POST** `/api/patents/import`
 
@@ -193,15 +193,15 @@ Request:
 }
 ```
 
-### 3) Enrich Patent / 丰富专利信息
+### 3) 丰富专利信息 / Enrich Patent
 
 **GET** `/api/patent/enrich/:id`
 
-### 4) Similar Patents / 相似专利推荐
+### 4) 相似专利推荐 / Similar Patents
 
 **GET** `/api/patent/similar/:id`
 
-### 5) Upload Compare / 上传文档对比
+### 5) 上传文档对比 / Upload Compare
 
 **POST** `/api/upload/compare` (`multipart/form-data`)
 
@@ -211,9 +211,9 @@ Fields:
 
 ---
 
-## AI APIs / AI 接口
+## AI 接口 / AI APIs
 
-### 1) Chat / 对话
+### 1) 对话 / Chat
 
 **POST** `/api/ai/chat`
 
@@ -224,7 +224,7 @@ Fields:
 }
 ```
 
-### 2) Summarize / 摘要
+### 2) 摘要 / Summarize
 
 **POST** `/api/ai/summarize`
 
@@ -234,7 +234,7 @@ Fields:
 }
 ```
 
-### 3) Compare / 对比
+### 3) 对比 / Compare
 
 **POST** `/api/ai/compare`
 
@@ -247,9 +247,9 @@ Fields:
 
 ---
 
-## Settings APIs / 配置接口
+## 配置接口 / Settings APIs
 
-### 1) Get Settings / 读取配置
+### 1) 读取配置 / Get Settings
 
 **GET** `/api/settings`
 
@@ -266,7 +266,7 @@ Fields:
 }
 ```
 
-### 2) Save SerpAPI / 保存 SerpAPI Key
+### 2) 保存 SerpAPI Key / Save SerpAPI
 
 **POST** `/api/settings/serpapi`
 
@@ -274,7 +274,7 @@ Fields:
 { "api_key": "your-serpapi-key" }
 ```
 
-### 3) Save AI Config / 保存 AI 配置
+### 3) 保存 AI 配置 / Save AI Config
 
 **POST** `/api/settings/ai`
 
@@ -288,7 +288,7 @@ Fields:
 
 ---
 
-## Common Errors / 通用错误
+## 通用错误 / Common Errors
 
 ```json
 {
