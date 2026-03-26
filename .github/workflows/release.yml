@@ -148,10 +148,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -160,31 +156,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK
-        run: sdkmanager "ndk;27.0.12077973"
-
-      - name: Install Dioxus CLI
-        run: cargo install dioxus-cli
-
-      - name: Build Android APK
-        working-directory: mobile
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.12077973
+      - name: Setup Gradle wrapper
+        working-directory: android-app
         run: |
-          # Build for ARM64 (phones) and x86_64 (emulators/ChromeBook)
-          dx build --platform android --release --target aarch64-linux-android
-          # Rename ARM64 APK
-          ARM_APK=$(find . -name "*.apk" -type f | head -1)
-          if [ -n "$ARM_APK" ]; then cp "$ARM_APK" ../patent-hub-android-arm64.apk; fi
-          # Build x86_64 version
-          dx build --platform android --release --target x86_64-linux-android
-          X86_APK=$(find . -name "*.apk" -newer ../patent-hub-android-arm64.apk -type f | head -1)
-          if [ -n "$X86_APK" ]; then cp "$X86_APK" ../patent-hub-android-x86_64.apk; fi
+          gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+
+      - name: Build APK
+        working-directory: android-app
+        run: ./gradlew assembleRelease
 
       - name: Sign APK
         run: |
-          # Generate a release keystore for signing
           keytool -genkeypair -v \
             -keystore patent-hub.keystore \
             -alias patent-hub \
@@ -192,37 +175,21 @@ jobs:
             -storepass patent-hub-2024 \
             -keypass patent-hub-2024 \
             -dname "CN=Patent Hub, OU=Dev, O=Patent Hub, L=SZ, ST=GD, C=CN"
-          # Find and sign all APKs
-          for apk in $(find . -name "*.apk" -type f); do
-            echo "Signing: $apk"
-            # Align the APK
-            ${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/zipalign -f 4 "$apk" "${apk}.aligned"
-            mv "${apk}.aligned" "$apk"
-            # Sign with apksigner
+          APK=$(find android-app -name "*.apk" -type f | head -1)
+          if [ -n "$APK" ]; then
+            echo "Found: $APK"
+            ${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/zipalign -f 4 "$APK" patent-hub-android.apk
             ${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/apksigner sign \
               --ks patent-hub.keystore \
               --ks-key-alias patent-hub \
               --ks-pass pass:patent-hub-2024 \
               --key-pass pass:patent-hub-2024 \
-              "$apk"
-            echo "Signed: $apk"
-          done
-
-      - name: Find APK
-        id: find-apk
-        run: |
-          echo "Searching for APK files..."
-          ls -la patent-hub-android-*.apk 2>/dev/null
-          if [ -f "patent-hub-android-arm64.apk" ] || [ -f "patent-hub-android-x86_64.apk" ]; then
-            echo "apk_found=true" >> $GITHUB_OUTPUT
-          else
-            echo "apk_found=false" >> $GITHUB_OUTPUT
+              patent-hub-android.apk
+            echo "Signed successfully"
           fi
 
       - name: Upload APK
-        if: steps.find-apk.outputs.apk_found == 'true'
+        if: ${{ hashFiles('patent-hub-android.apk') != '' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            patent-hub-android-arm64.apk
-            patent-hub-android-x86_64.apk
+          files: patent-hub-android.apk
