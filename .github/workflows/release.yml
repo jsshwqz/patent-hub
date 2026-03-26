@@ -172,7 +172,15 @@ jobs:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.12077973
         run: |
+          # Build for ARM64 (phones) and x86_64 (emulators/ChromeBook)
           dx build --platform android --release --target aarch64-linux-android
+          # Rename ARM64 APK
+          ARM_APK=$(find . -name "*.apk" -type f | head -1)
+          if [ -n "$ARM_APK" ]; then cp "$ARM_APK" ../patent-hub-android-arm64.apk; fi
+          # Build x86_64 version
+          dx build --platform android --release --target x86_64-linux-android
+          X86_APK=$(find . -name "*.apk" -newer ../patent-hub-android-arm64.apk -type f | head -1)
+          if [ -n "$X86_APK" ]; then cp "$X86_APK" ../patent-hub-android-x86_64.apk; fi
 
       - name: Sign APK
         run: |
@@ -204,14 +212,10 @@ jobs:
         id: find-apk
         run: |
           echo "Searching for APK files..."
-          find . -name "*.apk" -type f 2>/dev/null
-          APK=$(find . -name "*.apk" -type f | head -1)
-          if [ -n "$APK" ]; then
-            cp "$APK" patent-hub-android.apk
+          ls -la patent-hub-android-*.apk 2>/dev/null
+          if [ -f "patent-hub-android-arm64.apk" ] || [ -f "patent-hub-android-x86_64.apk" ]; then
             echo "apk_found=true" >> $GITHUB_OUTPUT
-            echo "Found APK: $APK"
           else
-            echo "No APK found"
             echo "apk_found=false" >> $GITHUB_OUTPUT
           fi
 
@@ -219,4 +223,6 @@ jobs:
         if: steps.find-apk.outputs.apk_found == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: patent-hub-android.apk
+          files: |
+            patent-hub-android-arm64.apk
+            patent-hub-android-x86_64.apk
