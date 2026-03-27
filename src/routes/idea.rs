@@ -569,7 +569,9 @@ pub async fn api_idea_pipeline(
 
     // Run pipeline in background
     tokio::spawn(async move {
+        tracing::info!("Pipeline 开始执行: {}", idea_id);
         let result = runner.run(&idea_id, &title, &description, Some(tx)).await;
+        tracing::info!("Pipeline 执行完毕: {} => {:?}", idea_id, result.is_ok());
 
         // Save result to database
         match &result {
@@ -659,12 +661,23 @@ pub async fn api_idea_progress(
     State(s): State<AppState>,
     Path(idea_id): Path<String>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let rx = {
-        let channels = s.pipeline_channels.lock().unwrap();
-        channels.get(&idea_id).map(|tx| tx.subscribe())
-    };
+    let channels = s.pipeline_channels.clone();
+    let id = idea_id.clone();
 
     let stream = async_stream::stream! {
+        // 等待 channel 创建（最多 5 秒，给 pipeline 启动时间）
+        let mut rx = None;
+        for _ in 0..10 {
+            {
+                let ch = channels.lock().unwrap();
+                if let Some(tx) = ch.get(&id) {
+                    rx = Some(tx.subscribe());
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+
         if let Some(mut rx) = rx {
             loop {
                 match rx.recv().await {
@@ -673,7 +686,6 @@ pub async fn api_idea_progress(
                         yield Ok(Event::default().data(data));
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                        // Pipeline finished
                         yield Ok(Event::default().event("done").data("complete"));
                         break;
                     }
@@ -683,7 +695,7 @@ pub async fn api_idea_progress(
                 }
             }
         } else {
-            // No active pipeline, send done immediately
+            // 检查是否已完成（pipeline 可能在等待期间就跑完了）
             yield Ok(Event::default().event("done").data("no active pipeline"));
         }
     };

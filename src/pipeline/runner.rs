@@ -35,16 +35,19 @@ impl PipelineRunner {
         progress_tx: Option<tokio::sync::broadcast::Sender<PipelineProgress>>,
     ) -> Result<PipelineContext> {
         let mut ctx = PipelineContext::new(idea_id, title, description);
+        tracing::info!("Pipeline runner started for idea: {}", idea_id);
 
         loop {
             let step = ctx.current_step;
             let step_start = Instant::now();
+            tracing::info!("Pipeline step {:?} starting", step);
 
             // 发送进度
             self.send_progress(&progress_tx, &step, StepStatus::Running);
 
             // 执行当前步骤
             let result = self.execute_step(&mut ctx).await;
+            tracing::info!("Pipeline step {:?} result: {:?}", step, result.is_ok());
 
             let duration_ms = step_start.elapsed().as_millis() as u64;
 
