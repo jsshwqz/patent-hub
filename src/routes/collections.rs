@@ -64,6 +64,13 @@ pub async fn api_add_to_collection(
         return Json(json!({"error": "patent_id is required"}));
     }
 
+    // 验证专利 ID 是否存在
+    match s.db.get_patent(patent_id) {
+        Ok(None) => return Json(json!({"error": "专利不存在"})),
+        Err(_) => return Json(json!({"error": "查询专利失败"})),
+        Ok(Some(_)) => {}
+    }
+
     match s.db.add_to_collection(patent_id, &collection_id) {
         Ok(()) => Json(json!({"status": "ok"})),
         Err(e) => Json(json!({"error": format!("{}", e)})),

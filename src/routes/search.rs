@@ -12,6 +12,19 @@ pub async fn api_search(
     State(s): State<AppState>,
     Json(req): Json<SearchRequest>,
 ) -> Json<SearchResult> {
+    // 空 query 校验
+    if req.query.trim().is_empty() {
+        return Json(SearchResult {
+            patents: vec![],
+            total: 0,
+            page: req.page,
+            page_size: req.page_size,
+            search_type: Some("mixed".into()),
+            dedup_removed: 0,
+            categories: None,
+        });
+    }
+
     let search_type = parse_search_type(req.search_type.as_deref());
     let (mut patents, total, detected_type) = match s.db.search_smart(
         &req.query,
