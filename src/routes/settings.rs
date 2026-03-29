@@ -18,6 +18,10 @@ pub async fn api_get_settings(State(s): State<AppState>) -> Json<serde_json::Val
     Json(json!({
         "serpapi_key": mask_api_key(&config.serpapi_key),
         "serpapi_key_configured": config.has_serpapi(),
+        "bing_api_key": mask_api_key(&config.bing_api_key),
+        "bing_api_key_configured": config.has_bing(),
+        "lens_api_key": mask_api_key(&config.lens_api_key),
+        "lens_api_key_configured": config.has_lens(),
         "ai_base_url": config.ai_base_url,
         "ai_api_key": mask_api_key(&config.ai_api_key),
         "ai_api_key_configured": !config.ai_api_key.is_empty(),
@@ -101,6 +105,47 @@ pub async fn api_save_ai(
     let _ = update_env_file("AI_API_KEY", api_key);
     let _ = update_env_file("AI_MODEL", model);
 
+    Json(json!({"status": "ok"}))
+}
+
+pub async fn api_save_bing(
+    State(s): State<AppState>,
+    Json(req): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let api_key = req["api_key"].as_str().unwrap_or("").trim();
+    if api_key.is_empty() {
+        // 允许清空
+        s.config.write().unwrap().bing_api_key = String::new();
+        let _ = s.db.set_setting("BING_API_KEY", "");
+        let _ = update_env_file("BING_API_KEY", "");
+        return Json(json!({"status": "ok", "message": "Bing Key 已清除"}));
+    }
+    if api_key.len() < 20 || api_key.len() > 200 {
+        return Json(json!({"status": "error", "message": "Key 长度无效（20-200字符）"}));
+    }
+    s.config.write().unwrap().bing_api_key = api_key.to_string();
+    let _ = s.db.set_setting("BING_API_KEY", api_key);
+    let _ = update_env_file("BING_API_KEY", api_key);
+    Json(json!({"status": "ok"}))
+}
+
+pub async fn api_save_lens(
+    State(s): State<AppState>,
+    Json(req): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let api_key = req["api_key"].as_str().unwrap_or("").trim();
+    if api_key.is_empty() {
+        s.config.write().unwrap().lens_api_key = String::new();
+        let _ = s.db.set_setting("LENS_API_KEY", "");
+        let _ = update_env_file("LENS_API_KEY", "");
+        return Json(json!({"status": "ok", "message": "Lens Key 已清除"}));
+    }
+    if api_key.len() < 10 || api_key.len() > 200 {
+        return Json(json!({"status": "error", "message": "Key 长度无效（10-200字符）"}));
+    }
+    s.config.write().unwrap().lens_api_key = api_key.to_string();
+    let _ = s.db.set_setting("LENS_API_KEY", api_key);
+    let _ = update_env_file("LENS_API_KEY", api_key);
     Json(json!({"status": "ok"}))
 }
 

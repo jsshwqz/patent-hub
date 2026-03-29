@@ -27,6 +27,10 @@ use tokio::sync::broadcast;
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     pub serpapi_key: String,
+    /// Bing Web Search API key (Azure Cognitive Services) — 国内可用，替代 SerpAPI
+    pub bing_api_key: String,
+    /// Lens.org Patent API key — 国内可用，替代 Google Patents
+    pub lens_api_key: String,
     pub ai_base_url: String,
     pub ai_api_key: String,
     pub ai_model: String,
@@ -80,6 +84,8 @@ impl AppConfig {
 
         Self {
             serpapi_key: get("SERPAPI_KEY", ""),
+            bing_api_key: get("BING_API_KEY", ""),
+            lens_api_key: get("LENS_API_KEY", ""),
             ai_base_url: get("AI_BASE_URL", "http://localhost:11434/v1"),
             ai_api_key: get("AI_API_KEY", "ollama"),
             ai_model: get("AI_MODEL", "qwen2.5:7b"),
@@ -99,6 +105,16 @@ impl AppConfig {
     /// Whether SerpAPI is configured and usable.
     pub fn has_serpapi(&self) -> bool {
         !self.serpapi_key.is_empty() && self.serpapi_key != "your-serpapi-key-here"
+    }
+
+    /// Whether Bing Search API is configured (国内可用替代方案).
+    pub fn has_bing(&self) -> bool {
+        !self.bing_api_key.is_empty()
+    }
+
+    /// Whether Lens.org patent API is configured (国内可用替代方案).
+    pub fn has_lens(&self) -> bool {
+        !self.lens_api_key.is_empty()
     }
 }
 

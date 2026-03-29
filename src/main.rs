@@ -74,6 +74,8 @@ async fn main() -> anyhow::Result<()> {
         // Settings API
         .route("/api/settings", get(routes::api_get_settings))
         .route("/api/settings/serpapi", post(routes::api_save_serpapi))
+        .route("/api/settings/bing", post(routes::api_save_bing))
+        .route("/api/settings/lens", post(routes::api_save_lens))
         .route("/api/settings/ai", post(routes::api_save_ai))
         .route("/api/settings/fallbacks", post(routes::api_save_fallbacks))
         // Search API

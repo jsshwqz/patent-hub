@@ -577,7 +577,9 @@ pub async fn api_idea_pipeline(
     let ai_client = config.ai_client();
     let db = s.db.clone();
     let serpapi_key = config.serpapi_key.clone();
-    let runner = PipelineRunner::new(ai_client, db.clone(), serpapi_key);
+    let bing_api_key = config.bing_api_key.clone();
+    let lens_api_key = config.lens_api_key.clone();
+    let runner = PipelineRunner::new(ai_client, db.clone(), serpapi_key, bing_api_key, lens_api_key);
 
     let idea_id = id.to_string();
     let title = idea.title.clone();

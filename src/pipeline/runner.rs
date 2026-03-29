@@ -15,14 +15,24 @@ pub struct PipelineRunner {
     ai_client: AiClient,
     db: Arc<Database>,
     serpapi_key: String,
+    bing_api_key: String,
+    lens_api_key: String,
 }
 
 impl PipelineRunner {
-    pub fn new(ai_client: AiClient, db: Arc<Database>, serpapi_key: String) -> Self {
+    pub fn new(
+        ai_client: AiClient,
+        db: Arc<Database>,
+        serpapi_key: String,
+        bing_api_key: String,
+        lens_api_key: String,
+    ) -> Self {
         Self {
             ai_client,
             db,
             serpapi_key,
+            bing_api_key,
+            lens_api_key,
         }
     }
 
@@ -109,9 +119,9 @@ impl PipelineRunner {
         match ctx.current_step {
             PipelineStep::ParseInput => steps::parse::execute(ctx).await,
             PipelineStep::ExpandQuery => steps::expand::execute(ctx, &self.ai_client).await,
-            PipelineStep::SearchWeb => steps::search::search_web(ctx, &self.serpapi_key).await,
+            PipelineStep::SearchWeb => steps::search::search_web(ctx, &self.serpapi_key, &self.bing_api_key).await,
             PipelineStep::SearchPatents => {
-                steps::search::search_patents(ctx, &self.serpapi_key, &self.db).await
+                steps::search::search_patents(ctx, &self.serpapi_key, &self.lens_api_key, &self.db).await
             }
             PipelineStep::DiversityGate => steps::diversity::execute(ctx).await,
             PipelineStep::ComputeSimilarity => steps::similarity::execute(ctx).await,

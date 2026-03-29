@@ -113,8 +113,33 @@
         <h2>系统设置</h2>
 
         <div class="setting-group">
-            <h3>🔑 专利搜索配置（可选）</h3>
-            <p>配置 SerpAPI Key 后可搜索 Google Patents 全球专利数据。未配置时仍可使用本地专利库。</p>
+            <h3>🇨🇳 国内搜索配置（无需 VPN）</h3>
+            <p>国内用户推荐配置以下两项，可在不使用 VPN 的情况下进行在线专利检索。</p>
+
+            <div class="form-group">
+                <label>Bing Web Search API Key <span style="color:#4ade80;font-size:12px;">（网页搜索，替代 SerpAPI）</span></label>
+                <input type="text" id="bing-api-key" placeholder="输入 Azure Bing Search API Key">
+                <a href="https://www.microsoft.com/en-us/bing/apis/bing-web-search-api" target="_blank" class="help-link">
+                    → 注册 Azure 获取免费 Key（每月 1000 次）
+                </a>
+            </div>
+            <button class="btn-save" onclick="saveBingKey()">保存 Bing Key</button>
+            <div id="bing-status" class="status-message"></div>
+
+            <div class="form-group" style="margin-top:20px;">
+                <label>Lens.org API Key <span style="color:#4ade80;font-size:12px;">（专利搜索，替代 Google Patents）</span></label>
+                <input type="text" id="lens-api-key" placeholder="输入 Lens.org API Token">
+                <a href="https://www.lens.org/lens/user/subscriptions" target="_blank" class="help-link">
+                    → 注册 Lens.org 获取免费 API Token（全球专利库）
+                </a>
+            </div>
+            <button class="btn-save" onclick="saveLensKey()">保存 Lens Key</button>
+            <div id="lens-status" class="status-message"></div>
+        </div>
+
+        <div class="setting-group">
+            <h3>🔑 SerpAPI 配置（可选，需要 VPN 或海外服务器）</h3>
+            <p>配置 SerpAPI Key 后可搜索 Google Patents 全球专利数据。未配置时仍可使用本地专利库或上方国内方案。</p>
             <p style="color:#f0ad4e;font-size:13px;">SerpAPI 免费版每月 100 次搜索，足够个人使用。</p>
             <div class="form-group">
                 <label>SerpAPI Key</label>
@@ -203,6 +228,8 @@
                 if (res.ok) {
                     const config = await res.json();
                     document.getElementById('serpapi-key').value = config.serpapi_key || '';
+                    document.getElementById('bing-api-key').value = config.bing_api_key || '';
+                    document.getElementById('lens-api-key').value = config.lens_api_key || '';
                     document.getElementById('ai-base-url').value = config.ai_base_url || '';
                     document.getElementById('ai-api-key').value = config.ai_api_key || '';
                     document.getElementById('ai-model').value = config.ai_model || '';
@@ -226,19 +253,66 @@
 
         function updateConfigStatus(config) {
             const status = [];
-            if (config.serpapi_key && config.serpapi_key !== 'your-serpapi-key-here') {
-                status.push('✅ SerpAPI 已配置');
+
+            // 在线专利搜索能力
+            if (config.serpapi_key_configured) {
+                status.push('✅ SerpAPI 已配置（Google Patents，需 VPN）');
+            } else if (config.bing_api_key_configured || config.lens_api_key_configured) {
+                const parts = [];
+                if (config.bing_api_key_configured) parts.push('Bing 网页搜索');
+                if (config.lens_api_key_configured) parts.push('Lens.org 专利搜索');
+                status.push('✅ 国内搜索已配置（' + parts.join(' + ') + '，无需 VPN）');
             } else {
-                status.push('❌ SerpAPI 未配置（无法使用在线搜索）');
+                status.push('⚠️ 在线搜索未配置（仅本地数据库）');
             }
-            
-            if (config.ai_api_key) {
+
+            if (config.ai_api_key_configured) {
                 status.push('✅ AI 服务已配置');
             } else {
                 status.push('❌ AI 服务未配置（无法使用智能分析）');
             }
-            
+
             document.getElementById('config-status').innerHTML = status.join('<br>');
+        }
+
+        async function saveBingKey() {
+            const key = document.getElementById('bing-api-key').value.trim();
+            const statusEl = document.getElementById('bing-status');
+            try {
+                const res = await fetch('/api/settings/bing', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({api_key: key})
+                });
+                const data = await res.json();
+                statusEl.className = 'status-message ' + (data.status === 'ok' ? 'success' : 'error');
+                statusEl.textContent = data.status === 'ok' ? (key ? '✅ Bing Key 已保存' : '✅ Bing Key 已清除') : ('❌ ' + data.message);
+                statusEl.style.display = 'block';
+            } catch(e) {
+                statusEl.className = 'status-message error';
+                statusEl.textContent = '❌ 保存失败: ' + e.message;
+                statusEl.style.display = 'block';
+            }
+        }
+
+        async function saveLensKey() {
+            const key = document.getElementById('lens-api-key').value.trim();
+            const statusEl = document.getElementById('lens-status');
+            try {
+                const res = await fetch('/api/settings/lens', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({api_key: key})
+                });
+                const data = await res.json();
+                statusEl.className = 'status-message ' + (data.status === 'ok' ? 'success' : 'error');
+                statusEl.textContent = data.status === 'ok' ? (key ? '✅ Lens Key 已保存' : '✅ Lens Key 已清除') : ('❌ ' + data.message);
+                statusEl.style.display = 'block';
+            } catch(e) {
+                statusEl.className = 'status-message error';
+                statusEl.textContent = '❌ 保存失败: ' + e.message;
+                statusEl.style.display = 'block';
+            }
         }
 
         function updateAiFields() {

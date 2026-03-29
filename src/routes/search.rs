@@ -348,7 +348,62 @@ pub async fn api_search_online(
         Err(e) => println!("[ONLINE] Google Patents direct error: {}", e),
     }
 
-    // Fallback 3: local DB search
+    // Fallback 3: Lens.org patent search (国内可用，无需 VPN)
+    let lens_key = s.config.read().unwrap().lens_api_key.clone();
+    if !lens_key.is_empty() {
+        println!("[ONLINE] Trying Lens.org patent search (国内可用)...");
+        let search_query = build_online_query(
+            &req.query,
+            online_search_type.as_ref(),
+            req.date_from.as_deref(),
+            req.date_to.as_deref(),
+        );
+        match search_lens_patents(&search_query, &lens_key, req.page).await {
+            Ok((patents, total)) if !patents.is_empty() => {
+                for p in &patents {
+                    let full = Patent {
+                        id: p.id.clone(),
+                        patent_number: p.patent_number.clone(),
+                        title: p.title.clone(),
+                        abstract_text: p.abstract_text.clone(),
+                        description: String::new(),
+                        claims: String::new(),
+                        applicant: p.applicant.clone(),
+                        inventor: p.inventor.clone(),
+                        filing_date: p.filing_date.clone(),
+                        publication_date: String::new(),
+                        grant_date: None,
+                        ipc_codes: String::new(),
+                        cpc_codes: String::new(),
+                        priority_date: String::new(),
+                        country: p.country.clone(),
+                        kind_code: String::new(),
+                        family_id: None,
+                        legal_status: String::new(),
+                        citations: "[]".into(),
+                        cited_by: "[]".into(),
+                        source: "lens_org".into(),
+                        raw_json: String::new(),
+                        created_at: chrono::Utc::now().to_rfc3339(),
+                        images: "[]".into(),
+                        pdf_url: String::new(),
+                    };
+                    let _ = s.db.insert_patent(&full);
+                }
+                return Json(json!({
+                    "patents": patents,
+                    "total": total,
+                    "page": req.page,
+                    "page_size": 10,
+                    "source": "lens_org"
+                }));
+            }
+            Ok(_) => println!("[ONLINE] Lens.org returned empty"),
+            Err(e) => println!("[ONLINE] Lens.org error: {}", e),
+        }
+    }
+
+    // Fallback 4: local DB search
     println!("[ONLINE] Falling back to local DB");
     let local = s
         .db
@@ -619,7 +674,7 @@ pub(crate) fn serp_to_patent(r: &serde_json::Value) -> Patent {
     }
 }
 
-// ── Google Patents Direct Search (free, no API key, no VPN) ──────────────────
+// ── Google Patents Direct Search (free, no API key; 注意：国内需要 VPN) ────────
 
 async fn search_google_patents_direct(
     req: &SearchRequest,
@@ -789,4 +844,143 @@ fn strip_html_tags(s: &str) -> String {
         }
     }
     result
+}
+
+// ── Lens.org Patent Search (国内可用，无需 VPN，需要免费 API Key) ─────────────
+
+/// 通过 Lens.org API 搜索专利（国内可直接访问，替代 Google Patents）。
+/// 注册地址：https://www.lens.org/lens/user/subscriptions
+pub async fn search_lens_patents(
+    query: &str,
+    api_key: &str,
+    page: usize,
+) -> Result<(Vec<PatentSummary>, usize), String> {
+    let from = (page.saturating_sub(1)) * 10;
+    let body = serde_json::json!({
+        "query": {
+            "query_string": {
+                "query": query,
+                "fields": ["title", "abstract", "claims"]
+            }
+        },
+        "size": 10,
+        "from": from,
+        "include": [
+            "lens_id", "title", "abstract", "date_published",
+            "biblio.publication_reference",
+            "biblio.parties.applicants",
+            "biblio.parties.inventors"
+        ]
+    });
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .post("https://api.lens.org/patent/search")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Lens.org request failed: {}", e))?;
+
+    let status = resp.status();
+    if status.as_u16() == 401 || status.as_u16() == 403 {
+        return Err("Lens.org API Key 无效，请检查设置中的 Lens Key".to_string());
+    }
+    if !status.is_success() {
+        return Err(format!("Lens.org HTTP {}", status));
+    }
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Lens.org JSON parse: {}", e))?;
+
+    let total = json["total"].as_u64().unwrap_or(0) as usize;
+    let mut patents = Vec::new();
+
+    if let Some(data) = json["data"].as_array() {
+        for item in data {
+            // 专利号：从 biblio.publication_reference 取 jurisdiction + doc_number + kind
+            let pub_ref = &item["biblio"]["publication_reference"];
+            let jurisdiction = pub_ref["jurisdiction"].as_str().unwrap_or("").to_uppercase();
+            let doc_number = pub_ref["doc_number"].as_str().unwrap_or("");
+            let kind = pub_ref["kind"].as_str().unwrap_or("");
+            let patent_number = if doc_number.is_empty() {
+                item["lens_id"].as_str().unwrap_or("").to_string()
+            } else {
+                format!("{}{}{}", jurisdiction, doc_number, kind)
+            };
+
+            // 标题（优先中文，再取第一个）
+            let title = item["title"]
+                .as_array()
+                .and_then(|arr| {
+                    arr.iter()
+                        .find(|t| t["lang"].as_str() == Some("zh"))
+                        .or_else(|| arr.first())
+                })
+                .and_then(|t| t["text"].as_str())
+                .unwrap_or("")
+                .to_string();
+
+            // 摘要
+            let abstract_text = item["abstract"]
+                .as_array()
+                .and_then(|arr| {
+                    arr.iter()
+                        .find(|t| t["lang"].as_str() == Some("zh"))
+                        .or_else(|| arr.first())
+                })
+                .and_then(|t| t["text"].as_str())
+                .unwrap_or("")
+                .to_string();
+
+            // 申请人
+            let applicant = item["biblio"]["parties"]["applicants"]
+                .as_array()
+                .and_then(|arr| arr.first())
+                .and_then(|a| a["extracted_name"]["value"].as_str())
+                .unwrap_or("")
+                .to_string();
+
+            // 发明人
+            let inventor = item["biblio"]["parties"]["inventors"]
+                .as_array()
+                .and_then(|arr| arr.first())
+                .and_then(|a| a["extracted_name"]["value"].as_str())
+                .unwrap_or("")
+                .to_string();
+
+            let filing_date = item["date_published"]
+                .as_str()
+                .unwrap_or("")
+                .to_string();
+
+            if title.is_empty() && patent_number.is_empty() {
+                continue;
+            }
+
+            let content_score = calculate_online_relevance(query, &title, &abstract_text, &applicant);
+            patents.push(PatentSummary {
+                id: uuid::Uuid::new_v4().to_string(),
+                patent_number,
+                title,
+                abstract_text,
+                applicant,
+                inventor,
+                filing_date,
+                country: jurisdiction,
+                relevance_score: Some(content_score),
+                score_source: Some("lens.org".to_string()),
+            });
+        }
+    }
+
+    println!("[LENS] {} results, total {}", patents.len(), total);
+    Ok((patents, total))
 }
