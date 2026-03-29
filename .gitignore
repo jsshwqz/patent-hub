@@ -12,3 +12,6 @@ docs/plans/
 node_modules
 package-lock.json
 server.log
+
+# Android signing credentials (passwords, not keystore)
+keystore.properties

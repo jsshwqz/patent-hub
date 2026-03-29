@@ -23,7 +23,9 @@
             "entities": ["entity.system.home"],
             "actions": ["action.system.home"]
           }
-        ]
+        ],
+        "orientation": "unspecified",
+        "launchType": "singleton"
       }
     ],
     "requestPermissions": [

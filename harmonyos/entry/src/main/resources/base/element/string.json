@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "Patent Hub - 智能专利检索与分析"
+      "value": "专利中心 - 智能专利检索与创新分析"
     },
     {
       "name": "ability_desc",
-      "value": "Patent Hub Main"
+      "value": "专利中心主界面"
     },
     {
       "name": "app_name",
-      "value": "Patent Hub"
+      "value": "专利中心"
     }
   ]
 }
