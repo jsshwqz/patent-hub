@@ -1,0 +1,31 @@
+# ===== GitHub 语言统计优化 =====
+
+# 前端模板（HTML/JS/CSS 是 Rust 服务端渲染的页面资源，不是独立前端项目）
+templates/**/*.html linguist-documentation
+static/**/*.js linguist-vendored
+static/**/*.css linguist-vendored
+
+# Tauri 桌面端前端资源（即将拆到独立仓库）
+src-tauri/frontend/** linguist-vendored
+src-tauri/icons/** linguist-generated
+src-tauri/gen/** linguist-generated
+src-tauri/target/** linguist-generated
+
+# iOS 原生壳（即将拆到独立仓库）
+ios-app/** linguist-vendored
+
+# HarmonyOS 原生壳（即将拆到独立仓库）
+harmonyos/** linguist-vendored
+
+# 移动端 Dioxus 客户端资源文件
+mobile/assets/*.css linguist-vendored
+
+# 工具脚本
+*.sh linguist-vendored
+*.mjs linguist-vendored
+
+# 二进制文件
+*.png binary
+*.ico binary
+*.icns binary
+*.jks binary

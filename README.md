@@ -114,34 +114,39 @@ docker run -p 3000:3000 -v patent-data:/data patent-hub
 ## 项目结构
 
 ```
-patent-hub/
+patent-hub/                # Rust 主仓
   src/
-    main.rs          # Web 服务器入口
-    lib.rs           # 库导出 + Android JNI 入口
-    ai.rs            # AI 客户端（多服务商容灾）
-    db.rs            # SQLite 数据库 + FTS5 全文搜索
-    patent.rs        # 数据模型
-    routes/          # API 路由处理器
+    main.rs               # Web 服务器入口
+    lib.rs                # 库导出 + Android JNI 入口
+    ai.rs                 # AI 客户端（多服务商容灾）
+    db.rs                 # SQLite 数据库 + FTS5 全文搜索
+    patent.rs             # 数据模型
+    routes/               # API 路由处理器
+    pipeline/             # 12步创新验证流水线
     bin/
-      skill-router.rs  # 独立 CLI 工具
-      mobile.rs        # 移动端入口
-      mcp-server.rs    # MCP 服务器
-  templates/         # HTML 模板（7 个页面）
-  static/            # CSS、JS（含国际化）
-  tests/             # 集成测试
-  docs/              # 文档
+      mcp-server.rs       # MCP 服务器
+  mobile/                 # Dioxus 移动端（Rust UI）
+  templates/              # HTML 页面模板
+  static/                 # 静态资源
+  tests/                  # 集成测试
+  docs/                   # 文档
 ```
+
+**关联仓库：**
+- [patent-hub-desktop](https://gitee.com/jsshwqz/patent-hub-desktop) -- Tauri 桌面/移动端壳
+- [patent-hub-ios](https://gitee.com/jsshwqz/patent-hub-ios) -- iOS 原生壳
+- [patent-hub-harmony](https://gitee.com/jsshwqz/patent-hub-harmony) -- 鸿蒙原生壳
 
 ---
 
 ## 技术栈
 
 - **后端**：Rust + Axum + SQLite（内嵌，零配置）
-- **前端**：原生 HTML/CSS/JS（无需构建工具）
+- **前端**：HTML 模板（Rust include_str! 内嵌）
 - **AI**：任意 OpenAI 兼容 API，自动容灾切换
-- **搜索**：SQLite FTS5 + SerpAPI + Google Patents
-- **移动端**：Rust cdylib + JNI + Android WebView
-- **国际化**：JS 翻译系统，中英双语
+- **搜索**：SQLite FTS5 + SerpAPI + Google Patents + 搜狗免费搜索（国内无VPN可用）
+- **移动端**：Rust cdylib + JNI + Android WebView / Dioxus
+- **国际化**：中英双语
 
 ---
 
