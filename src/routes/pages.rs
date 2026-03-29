@@ -1,5 +1,5 @@
 use super::{html_escape, AppState};
-use axum::{extract::{Path, State}, response::Html};
+use axum::{extract::{Path, State}, http::StatusCode, response::{Html, IntoResponse, Response}};
 
 pub async fn index_page() -> Html<String> {
     Html(include_str!("../../templates/index.html").to_string())
@@ -34,7 +34,7 @@ pub async fn settings_page() -> Html<String> {
 pub async fn patent_detail_page(
     Path(id): Path<String>,
     State(s): State<AppState>,
-) -> Html<String> {
+) -> Response {
     let t = include_str!("../../templates/patent_detail.html");
     match s.db.get_patent(&id) {
         Ok(Some(p)) => Html(
@@ -58,7 +58,7 @@ pub async fn patent_detail_page(
                 .replace("{{id}}", &html_escape(&p.id))
                 .replace("{{images_json}}", &p.images)
                 .replace("{{pdf_url}}", &html_escape(&p.pdf_url)),
-        ),
-        _ => Html("<h1>Not found</h1><a href='/search'>Back</a>".into()),
+        ).into_response(),
+        _ => (StatusCode::NOT_FOUND, Html("<h1>专利未找到</h1><a href='/search'>返回搜索</a>".to_string())).into_response(),
     }
 }

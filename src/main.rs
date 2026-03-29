@@ -152,11 +152,13 @@ async fn main() -> anyhow::Result<()> {
     println!("Patent Hub running at http://{addr}");
     println!("Local access: http://127.0.0.1:3000");
 
-    // Auto-open browser
-    let url = "http://127.0.0.1:3000/search";
-    if let Err(e) = open::that(url) {
-        println!("Could not open browser: {}", e);
-        println!("Please visit: {}", url);
+    // Auto-open browser (disabled when PATENT_HUB_NO_OPEN is set)
+    if std::env::var("PATENT_HUB_NO_OPEN").is_err() {
+        let url = "http://127.0.0.1:3000/search";
+        if let Err(e) = open::that(url) {
+            println!("Could not open browser: {}", e);
+            println!("Please visit: {}", url);
+        }
     }
 
     // Show local IP for mobile access

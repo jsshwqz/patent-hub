@@ -195,15 +195,34 @@ impl AiClient {
                     if status.as_u16() == 429 {
                         let raw_text = resp.text().await.unwrap_or_default();
                         tracing::warn!("[{}] rate limited (429): {}", provider.name, safe_truncate(&raw_text, 100));
-                        return Err(anyhow::anyhow!("Rate limited (429)"));
+                        return Err(anyhow::anyhow!("AI 频率限制，请稍后再试"));
                     }
 
                     if status.as_u16() == 401 || status.as_u16() == 403 {
                         let raw_text = resp.text().await.unwrap_or_default();
-                        return Err(anyhow::anyhow!("Auth failed ({}): {}", status, safe_truncate(&raw_text, 100)));
+                        tracing::warn!("[{}] auth error ({}): {}", provider.name, status.as_u16(), safe_truncate(&raw_text, 200));
+                        return Err(anyhow::anyhow!(
+                            "AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。"
+                        ));
                     }
 
-                    let raw_text = resp.text().await?;
+                    let raw_text = match resp.text().await {
+                        Ok(text) => text,
+                        Err(e) => {
+                            // "unexpected end of file" 等连接中断错误
+                            if attempt < max_retries - 1 {
+                                last_err = Some(anyhow::anyhow!("AI 响应读取中断: {}", e));
+                                continue;
+                            }
+                            return Err(anyhow::anyhow!(
+                                "AI 响应读取失败（连接中断）。可能原因：\n\
+                                 1. API Key 无效或余额不足\n\
+                                 2. 网络不稳定\n\
+                                 3. AI 服务暂时不可用\n\
+                                 请到「设置」检查 AI 配置。"
+                            ));
+                        }
+                    };
                     let content = extract_chat_content(&raw_text);
 
                     if status.is_server_error() && attempt < max_retries - 1 {
@@ -347,7 +366,7 @@ impl AiClient {
     /// Send a vision request to describe an image (using multimodal API like GLM-4V).
     pub async fn describe_image(&self, image_data_url: &str) -> Result<String> {
         let request_body = serde_json::json!({
-            "model": "glm-4v-flash",
+            "model": self.primary.model,
             "messages": [{
                 "role": "user",
                 "content": [

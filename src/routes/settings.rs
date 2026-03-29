@@ -39,7 +39,7 @@ pub async fn api_save_serpapi(
     }
     if !api_key
         .chars()
-        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.')
     {
         return Json(json!({"status": "error", "message": "API key contains invalid characters"}));
     }
@@ -69,8 +69,8 @@ pub async fn api_save_ai(
     if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
         return Json(json!({"status": "error", "message": "URL must use HTTP or HTTPS protocol"}));
     }
-    if api_key.len() < 10 || api_key.len() > 200 {
-        return Json(json!({"status": "error", "message": "API key length must be between 10 and 200 characters"}));
+    if api_key.len() < 8 || api_key.len() > 200 {
+        return Json(json!({"status": "error", "message": "API key length must be between 8 and 200 characters"}));
     }
     if model.len() < 2 || model.len() > 100 {
         return Json(json!({"status": "error", "message": "Model name must be between 2 and 100 characters"}));
