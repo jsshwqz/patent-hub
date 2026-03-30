@@ -1,3 +1,8 @@
+//! 统一错误处理 / Unified Error Handling
+//!
+//! 所有 API 路由共享的错误类型，自动转换为 JSON 响应。
+//! Shared error type for all API routes, auto-converts to JSON response.
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
@@ -5,7 +10,7 @@ use axum::{
 };
 use serde_json::json;
 
-/// Unified application error type.
+/// 统一应用错误类型 / Unified application error type.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum AppError {

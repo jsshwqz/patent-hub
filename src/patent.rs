@@ -1,5 +1,11 @@
+//! 数据结构定义 / Data Structures
+//!
+//! 专利、创意、搜索类型等核心数据结构。
+//! Core data structures: Patent, Idea, SearchType, etc.
+
 use serde::{Deserialize, Serialize};
 
+/// 专利数据 / Patent data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Patent {
     #[serde(default = "gen_id")]

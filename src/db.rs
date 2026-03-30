@@ -1,14 +1,23 @@
+//! 数据库操作层 / Database Operations
+//!
+//! 基于 SQLite + FTS5 的本地数据持久化，支持全文搜索、创意管理、收藏夹、标签等。
+//! Local data persistence with SQLite + FTS5, supporting full-text search, ideas, collections, tags.
+//!
+//! 数据库自动迁移，当前 schema 版本：5。
+//! Auto-migration, current schema version: 5.
+
 use crate::patent::{Idea, IdeaSummary, Patent, PatentSummary, SearchType};
 use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
 use std::sync::Mutex;
 
+/// 数据库实例 / Database instance
 pub struct Database {
     conn: Mutex<Connection>,
 }
 
 impl Database {
-    /// Acquire database connection, recovering from mutex poison if needed.
+    /// 获取数据库连接，自动恢复被污染的互斥锁 / Acquire database connection, recovering from mutex poison if needed.
     fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().unwrap_or_else(|poisoned| {
             tracing::warn!("Database mutex was poisoned, recovering");

@@ -1,3 +1,18 @@
+//! API 路由层 / API Routes
+//!
+//! 所有 HTTP 端点的实现，按功能模块拆分。
+//! All HTTP endpoint implementations, organized by feature module.
+//!
+//! - [`ai`] — AI 聊天、摘要、对比 / AI chat, summary, comparison
+//! - [`search`] — 专利搜索 / Patent search
+//! - [`idea`] — 创意验证 + 多轮对话 / Idea validation + multi-round chat
+//! - [`patent`] — 专利详情 / Patent details
+//! - [`collections`] — 收藏夹管理 / Collections management
+//! - [`settings`] — 系统设置 / System settings
+//! - [`ipc`] — IPC 分类 / IPC classification
+//! - [`upload`] — 文件上传 / File upload
+//! - [`pages`] — 页面渲染 / Page rendering
+
 mod ai;
 mod collections;
 mod idea;

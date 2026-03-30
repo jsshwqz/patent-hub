@@ -191,6 +191,17 @@ patent-hub/                # Rust 主仓
 
 ---
 
+## 获取更新通知 / Stay Updated
+
+想在新版本发布时收到通知？
+
+1. **GitHub Watch** -- 在仓库页面右上角点击 **Watch → Custom → Releases**，每次发布新版会收到邮件通知
+2. **Gitee 关注** -- 在 [Gitee 仓库](https://gitee.com/jsshwqz/patent-hub) 点击 **Watch**
+3. **Release 页面** -- 查看最新版本：[GitHub Releases](https://github.com/jsshwqz/patent-hub/releases) | [Gitee Tags](https://gitee.com/jsshwqz/patent-hub/tags)
+4. **RSS 订阅** -- GitHub Releases 的 RSS 地址：`https://github.com/jsshwqz/patent-hub/releases.atom`
+
+---
+
 <a name="english"></a>
 ## English
 

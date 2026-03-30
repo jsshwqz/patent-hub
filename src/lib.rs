@@ -1,3 +1,15 @@
+//! # Patent Hub 核心库 / Core Library
+//!
+//! 专利检索、分析与创新验证平台的核心模块。
+//! Core modules for patent search, analysis and innovation validation.
+//!
+//! ## 模块 / Modules
+//! - [`ai`] — AI 多模型容灾客户端 / Multi-provider AI client with failover
+//! - [`db`] — SQLite 数据库操作 / SQLite database operations
+//! - [`patent`] — 专利数据结构 / Patent data structures
+//! - [`pipeline`] — 12 步创新验证流水线 / 12-step innovation validation pipeline
+//! - [`skill_router`] — 技能路由引擎 / Skill routing engine
+
 pub mod ai;
 pub mod db;
 pub mod patent;

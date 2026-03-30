@@ -1,10 +1,21 @@
+//! AI 多模型容灾客户端 / Multi-Provider AI Client with Failover
+//!
+//! 支持 6 种 AI 服务商自动切换：智谱 GLM、OpenRouter、Gemini、OpenAI、NVIDIA、DeepSeek。
+//! Supports 6 AI providers with automatic failover.
+//!
+//! 功能 / Features:
+//! - 摘要、对比、矩阵分析、权利要求分析、侵权评估 / Summary, comparison, claims analysis, risk assessment
+//! - 创意深度分析 / Idea deep analysis
+//! - 图片描述（视觉模型）/ Image description (vision model)
+//! - 批量摘要 / Batch summarize
+
 use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
 
-/// A single AI provider endpoint.
+/// 单个 AI 服务商端点 / A single AI provider endpoint.
 #[derive(Clone)]
 struct AiProvider {
     name: String,

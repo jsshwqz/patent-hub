@@ -1,3 +1,11 @@
+//! # Patent Hub 主程序 / Main Application
+//!
+//! Axum Web 服务器入口，注册所有路由并启动 HTTP 服务。
+//! Axum web server entry point, registers all routes and starts HTTP service.
+//!
+//! 默认监听 `0.0.0.0:3000`，自动打开浏览器。
+//! Listens on `0.0.0.0:3000` by default, auto-opens browser.
+
 mod ai;
 mod db;
 mod error;
@@ -62,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let app = Router::new()
-        // Page routes
+        // 页面路由 / Page routes
         .route("/", get(routes::index_page))
         .route("/search", get(routes::search_page))
         .route("/patent/:id", get(routes::patent_detail_page))
@@ -70,21 +78,21 @@ async fn main() -> anyhow::Result<()> {
         .route("/compare", get(routes::compare_page))
         .route("/idea", get(routes::idea_page))
         .route("/settings", get(routes::settings_page))
-        // Settings API
+        // 设置 API / Settings API
         .route("/api/settings", get(routes::api_get_settings))
         .route("/api/settings/serpapi", post(routes::api_save_serpapi))
         .route("/api/settings/bing", post(routes::api_save_bing))
         .route("/api/settings/lens", post(routes::api_save_lens))
         .route("/api/settings/ai", post(routes::api_save_ai))
         .route("/api/settings/fallbacks", post(routes::api_save_fallbacks))
-        // Search API
+        // 搜索 API / Search API
         .route("/api/search", post(routes::api_search))
         .route("/api/search/stats", post(routes::api_search_stats))
         .route("/api/search/export", post(routes::api_export_csv))
         .route("/api/search/export/xlsx", post(routes::api_export_xlsx))
         .route("/api/search/online", post(routes::api_search_online))
         .route("/api/search/analyze", post(routes::api_ai_analyze_results))
-        // Patent API
+        // 专利 API / Patent API
         .route("/api/patent/fetch", post(routes::api_fetch_patent))
         .route("/api/patent/enrich/:id", get(routes::api_enrich_patent))
         .route(
@@ -100,7 +108,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/patent/similar/:id",
             get(routes::api_recommend_similar),
         )
-        // AI API
+        // AI 接口 / AI API
         .route("/api/ai/chat", post(routes::api_ai_chat))
         .route("/api/ai/summarize", post(routes::api_ai_summarize))
         .route("/api/ai/compare", post(routes::api_ai_compare))
@@ -114,7 +122,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/ai/batch-summarize",
             post(routes::api_ai_batch_summarize),
         )
-        // Idea API
+        // 创意验证 API / Idea API
         .route("/api/idea/submit", post(routes::api_idea_submit))
         .route("/api/idea/analyze", post(routes::api_idea_analyze))
         .route("/api/idea/pipeline", post(routes::api_idea_pipeline))
@@ -129,12 +137,12 @@ async fn main() -> anyhow::Result<()> {
             "/api/idea/:id/summarize",
             post(routes::api_idea_summarize_discussion),
         )
-        // IPC Classification API
+        // IPC 分类 API / IPC Classification API
         .route("/api/ipc/tree", get(routes::api_ipc_tree))
         .route("/api/ipc/:code/patents", get(routes::api_ipc_patents))
-        // Import API
+        // 导入 API / Import API
         .route("/api/patents/import", post(routes::api_import_patents))
-        // Collections API
+        // 收藏夹 API / Collections API
         .route(
             "/api/collections",
             get(routes::api_list_collections).post(routes::api_create_collection),
@@ -155,7 +163,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/collections/:id/remove/:patent_id",
             axum::routing::delete(routes::api_remove_from_collection),
         )
-        // Tags API
+        // 标签 API / Tags API
         .route(
             "/api/patents/:id/tags",
             get(routes::api_get_patent_tags).post(routes::api_add_tag),
@@ -169,15 +177,15 @@ async fn main() -> anyhow::Result<()> {
             get(routes::api_get_patent_collections),
         )
         .route("/api/tags", get(routes::api_list_all_tags))
-        // File upload
+        // 文件上传 / File upload
         .route("/api/upload/compare", post(routes::api_upload_compare))
         .route("/api/upload/extract", post(routes::api_upload_extract))
-        // Static files (embedded in binary)
+        // 静态资源（内嵌二进制）/ Static files (embedded in binary)
         .route("/static/*path", get(serve_static))
         // 备用前端路径（桌面端已拆到独立仓库 patent-hub-desktop）
-        // Body size limit (10MB)
+        // 请求体大小限制（10MB）/ Body size limit (10MB)
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
-        // Security headers
+        // 安全响应头 / Security headers
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::header::X_FRAME_OPTIONS,
             HeaderValue::from_static("DENY"),
@@ -196,6 +204,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Patent Hub running at http://{addr}");
     println!("Local access: http://127.0.0.1:3000");
 
+    // 自动打开浏览器（设置 PATENT_HUB_NO_OPEN 可禁用）
     // Auto-open browser (disabled when PATENT_HUB_NO_OPEN is set)
     if std::env::var("PATENT_HUB_NO_OPEN").is_err() {
         let url = "http://127.0.0.1:3000/";
@@ -205,7 +214,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    // Show local IP for mobile access
+    // 显示局域网 IP（方便手机访问）/ Show local IP for mobile access
     if let Ok(local_ip) = local_ip_address::local_ip() {
         println!("Mobile access: http://{}:3000", local_ip);
     }

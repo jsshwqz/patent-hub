@@ -78,20 +78,20 @@ jobs:
           chmod +x pkg/start.sh pkg/patent-hub pkg/skill-router
 
           cat > pkg/USAGE.txt << 'EOF'
-          # Patent Hub + Skill Router
+          # Patent Hub + Skill Router / 使用说明
 
-          ## Start web server
+          ## 启动 Web 服务器 / Start web server
             ./start.sh
-            # or: ./patent-hub
+            # 或 / or: ./patent-hub
 
-          ## Use skill-router CLI
+          ## Skill Router 命令行 / CLI
             ./skill-router "parse this yaml"
             ./skill-router -c text_summarize -x '{"text":"hello world"}' summarize
             ./skill-router --gc --days 30
 
-          ## Configure
+          ## 配置 / Configure
             cp .env.example .env
-            # Edit .env with your API keys
+            # 编辑 .env 填入 API 密钥 / Edit .env with your API keys
           EOF
 
           cd pkg && tar czf "../${{ matrix.asset }}" .
@@ -117,30 +117,33 @@ jobs:
           '@ | Set-Content pkg\start.bat -Encoding ASCII
 
           @'
-          # Patent Hub + Skill Router
+          # Patent Hub + Skill Router / 使用说明
 
-          ## Start web server
+          ## 启动 Web 服务器 / Start web server
             start.bat
-            or: patent-hub.exe
+            或 / or: patent-hub.exe
 
-          ## Use skill-router CLI
+          ## Skill Router 命令行 / CLI
             skill-router.exe "parse this yaml"
             skill-router.exe -c text_summarize -x "{\"text\":\"hello world\"}" summarize
             skill-router.exe --gc --days 30
 
-          ## Configure
+          ## 配置 / Configure
             copy .env.example .env
-            Edit .env with your API keys
+            编辑 .env 填入 API 密钥 / Edit .env with your API keys
           '@ | Set-Content pkg\USAGE.txt -Encoding UTF8
 
           Compress-Archive -Path pkg\* -DestinationPath "${{ matrix.asset }}" -Force
 
       # ── Upload ────────────────────────────────────────────────────────────
+      # 上传构建产物到 Release / Upload build artifacts to Release
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.asset }}
-          generate_release_notes: true
+          # 不自动生成 release notes（由 CHANGELOG.md 手动管理，避免多矩阵任务导致重复追加）
+          # Don't auto-generate release notes (managed via CHANGELOG.md, avoids duplicate appends from matrix jobs)
+          generate_release_notes: false
 
   # ── 移动端 / 桌面端构建已移至独立仓库 ──────────────────────────────────
   # Android:   已拆出（cdylib 不再在主仓编译）
