@@ -1,53 +1,57 @@
 {
   "skill_name": "patent-hub-dev",
+  "iteration": 2,
   "evals": [
     {
       "id": "eval-1-fix-xss",
       "title": "修复 XSS 漏洞",
-      "prompt": "Fix the XSS vulnerabilities in patent-hub templates. Find all innerHTML assignments in templates/idea.html, templates/ai.html, and templates/settings.html that accept untrusted data. Replace them with safe alternatives: use textContent for plain text, or DOMPurify.sanitize() for formatted HTML content. Add DOMPurify CDN to each affected template's <head>. Do NOT break any existing functionality — pipeline progress UI, AI chat display, and settings page must still work correctly after the fix. Run cargo build --release to verify the templates still compile (they're embedded via include_str!).",
+      "prompt": "Our security audit flagged XSS vulnerabilities in patent-hub's HTML templates. The templates use innerHTML in several places. Please fix these security issues. Make sure the app still works correctly after your changes. Build to verify.",
+      "prompt_design_note": "Deliberately vague: does NOT specify which templates, does NOT name DOMPurify, does NOT list specific innerHTML locations. Agent must discover affected files, choose sanitization strategy, and verify.",
       "assertions": [
         {"id": "builds", "text": "cargo build --release succeeds", "type": "build"},
-        {"id": "no_raw_innerhtml_idea", "text": "idea.html has no innerHTML assignments with unsanitized user/API data", "type": "grep_absent", "file": "templates/idea.html", "pattern": "\\.innerHTML\\s*=(?!\\s*'')(?!\\s*\"\")"},
-        {"id": "no_raw_innerhtml_ai", "text": "ai.html has no innerHTML assignments with unsanitized user data", "type": "grep_absent", "file": "templates/ai.html", "pattern": "\\.innerHTML\\s*\\+=.*(?:data|content|user)"},
-        {"id": "dompurify_idea", "text": "DOMPurify added to idea.html", "type": "grep_present", "file": "templates/idea.html", "pattern": "DOMPurify|dompurify"},
-        {"id": "dompurify_ai", "text": "DOMPurify added to ai.html", "type": "grep_present", "file": "templates/ai.html", "pattern": "DOMPurify|dompurify"},
-        {"id": "textcontent_used", "text": "textContent used for plain text assignments", "type": "grep_present", "file": "templates/idea.html", "pattern": "textContent"},
-        {"id": "pipeline_ui_intact", "text": "Pipeline UI function buildPipelineUI still exists and is called", "type": "grep_present", "file": "templates/idea.html", "pattern": "buildPipelineUI"},
-        {"id": "safe_html_pattern", "text": "Formatted HTML content uses DOMPurify.sanitize()", "type": "grep_present", "file": "templates/idea.html", "pattern": "DOMPurify\\.sanitize"}
+        {"id": "dompurify_idea", "text": "DOMPurify or equivalent sanitizer added to idea.html", "type": "grep_present", "file": "templates/idea.html", "pattern": "DOMPurify|dompurify|sanitize"},
+        {"id": "dompurify_ai", "text": "Sanitizer added to ai.html", "type": "grep_present", "file": "templates/ai.html", "pattern": "DOMPurify|dompurify|sanitize"},
+        {"id": "dompurify_settings", "text": "Sanitizer added to settings.html", "type": "grep_present", "file": "templates/settings.html", "pattern": "DOMPurify|dompurify|sanitize"},
+        {"id": "textcontent_used", "text": "textContent used for plain text (not just sanitize everywhere)", "type": "grep_present", "file": "templates/idea.html", "pattern": "textContent"},
+        {"id": "all_three_templates", "text": "All 3 affected templates were identified and fixed (not just idea.html)", "type": "count_files_changed", "minimum": 3},
+        {"id": "cdn_added", "text": "CDN or library script tag added for sanitizer", "type": "grep_present", "file": "templates/idea.html", "pattern": "cdn|CDN|script.*purify|script.*sanitize"},
+        {"id": "pipeline_ui_intact", "text": "Pipeline UI function buildPipelineUI still exists", "type": "grep_present", "file": "templates/idea.html", "pattern": "buildPipelineUI"}
       ]
     },
     {
-      "id": "eval-2-pipeline-step",
-      "title": "新增 feature_card_extract pipeline 步骤",
-      "prompt": "Add a new pipeline step 'FeatureCardExtract' to patent-hub. This step should go between ScoreNovelty (step 8) and AiDeepAnalysis (currently step 9). It extracts feature cards (title + description pairs) from the top-ranked patent claims found in previous steps. Specifically:\n\n1. Add FeatureCardExtract variant to PipelineStep enum in src/pipeline/state.rs\n2. Update the next() chain, index() values, description(), is_critical(), skipped_in_quick_mode() for all affected steps\n3. Update TOTAL_STEPS from 12 to 13\n4. Add feature_cards field (Vec<(String, String)>) to PipelineContext in context.rs, initialized to empty vec\n5. Create src/pipeline/steps/feature_cards.rs with execute(ctx: &mut PipelineContext) -> Result<()> that extracts title/description pairs from ctx.ranked_results\n6. Register the module in src/pipeline/steps/mod.rs\n7. Add the match arm in runner.rs execute_step()\n8. Add an integration test in tests/ that creates a PipelineContext with sample ranked_results and verifies feature_cards are extracted\n9. Run cargo build --release && cargo test",
+      "id": "eval-2-add-api-route",
+      "title": "新增 feature_cards API 路由",
+      "prompt": "We need a REST API to manage feature cards in patent-hub. Add GET /api/ideas/:id/feature-cards (returns cards for an idea) and POST /api/ideas/:id/feature-cards (creates a new card). Use the existing FeatureCard struct and Database methods. Follow the project's API response conventions. Add a test. Build and test.",
+      "prompt_design_note": "Vague on: where to put the handler, what AppState fields to use, error format convention, how to register routes. Agent must discover project patterns from code or SKILL.md.",
       "assertions": [
         {"id": "builds", "text": "cargo build --release succeeds", "type": "build"},
-        {"id": "enum_variant", "text": "FeatureCardExtract variant added to PipelineStep", "type": "grep_present", "file": "src/pipeline/state.rs", "pattern": "FeatureCardExtract"},
-        {"id": "total_steps_13", "text": "TOTAL_STEPS updated to 13", "type": "grep_present", "file": "src/pipeline/state.rs", "pattern": "TOTAL_STEPS.*=.*13"},
-        {"id": "next_chain", "text": "ScoreNovelty.next() returns FeatureCardExtract", "type": "grep_present", "file": "src/pipeline/state.rs", "pattern": "ScoreNovelty.*=>.*FeatureCardExtract"},
-        {"id": "context_field", "text": "feature_cards field added to PipelineContext", "type": "grep_present", "file": "src/pipeline/context.rs", "pattern": "feature_cards"},
-        {"id": "step_file_exists", "text": "feature_cards.rs step implementation exists", "type": "file_exists", "file": "src/pipeline/steps/feature_cards.rs"},
-        {"id": "mod_registered", "text": "Module registered in steps/mod.rs", "type": "grep_present", "file": "src/pipeline/steps/mod.rs", "pattern": "feature_cards"},
-        {"id": "runner_dispatch", "text": "Match arm added in runner.rs", "type": "grep_present", "file": "src/pipeline/runner.rs", "pattern": "FeatureCardExtract"},
-        {"id": "test_added", "text": "Integration test for feature card extraction exists", "type": "grep_present", "path": "tests/", "pattern": "feature_card|FeatureCardExtract"},
+        {"id": "get_route", "text": "GET route registered for feature cards", "type": "grep_present", "file": "src/main.rs", "pattern": "feature.card"},
+        {"id": "post_route", "text": "POST route registered for feature cards", "type": "grep_present", "file": "src/main.rs", "pattern": "feature.card"},
+        {"id": "handler_exists", "text": "Handler function exists in routes/", "type": "grep_present", "path": "src/routes/", "pattern": "feature_card"},
+        {"id": "uses_appstate", "text": "Handler uses State<AppState>", "type": "grep_present", "path": "src/routes/", "pattern": "State.*AppState.*feature_card|feature_card.*State.*AppState"},
+        {"id": "json_response_convention", "text": "Response follows {status: ok/error} convention", "type": "grep_present", "path": "src/routes/", "pattern": "status.*ok|status.*error"},
+        {"id": "error_handling", "text": "Error case returns proper HTTP status", "type": "grep_present", "path": "src/routes/", "pattern": "StatusCode|INTERNAL_SERVER_ERROR|BAD_REQUEST|NOT_FOUND"},
+        {"id": "test_added", "text": "Test added for feature cards API", "type": "grep_present", "path": "tests/", "pattern": "feature_card"},
         {"id": "tests_pass", "text": "cargo test succeeds", "type": "test"}
       ]
     },
     {
-      "id": "eval-3-db-migration",
-      "title": "新增 v6 数据库迁移",
-      "prompt": "Add a v6 database migration to patent-hub for the feature_cards table. In src/db.rs:\n\n1. Update SCHEMA_VERSION from 5 to 6\n2. Add a new 'if current_version < 6' block after the v5 migration\n3. The migration should create:\n   - feature_cards table with columns: id TEXT PRIMARY KEY, idea_id TEXT NOT NULL, title TEXT NOT NULL, description TEXT DEFAULT '', novelty_score REAL, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (idea_id) REFERENCES ideas(id)\n   - Index idx_fc_idea on feature_cards(idea_id)\n   - Index idx_fc_score on feature_cards(novelty_score)\n4. Use CREATE TABLE IF NOT EXISTS and CREATE INDEX IF NOT EXISTS for idempotency\n5. End the migration block with DELETE FROM schema_version; INSERT INTO schema_version (version) VALUES (6);\n6. Add a Database method: insert_feature_card(&self, id, idea_id, title, description, novelty_score) -> Result<()>\n7. Add a Database method: get_feature_cards_by_idea(&self, idea_id) -> Result<Vec<FeatureCard>>\n8. Define FeatureCard struct with serde derives\n9. Add integration test using Database::init(\":memory:\") that inserts and retrieves feature cards\n10. Run cargo build --release && cargo test",
+      "id": "eval-3-add-pipeline-step",
+      "title": "新增 prior_art_cluster pipeline 步骤",
+      "prompt": "Add a 'PriorArtCluster' step to the patent-hub validation pipeline. It should cluster similar patents from the ranked results into groups by topic similarity, so the analysis step can reason about prior art themes instead of individual patents. Insert it at the appropriate position in the pipeline. Make sure all tests pass.",
+      "prompt_design_note": "Deliberately vague: does NOT specify which files to modify, the 4-file pattern, TOTAL_STEPS, index values, or where in the chain to insert. Agent must discover the pipeline architecture and coordinate all changes. SKILL.md explicitly documents this pattern.",
       "assertions": [
         {"id": "builds", "text": "cargo build --release succeeds", "type": "build"},
-        {"id": "schema_version_6", "text": "SCHEMA_VERSION updated to 6", "type": "grep_present", "file": "src/db.rs", "pattern": "SCHEMA_VERSION.*=.*6"},
-        {"id": "migration_block", "text": "if current_version < 6 migration block exists", "type": "grep_present", "file": "src/db.rs", "pattern": "current_version < 6"},
-        {"id": "create_table", "text": "feature_cards table created with correct columns", "type": "grep_present", "file": "src/db.rs", "pattern": "CREATE TABLE IF NOT EXISTS feature_cards"},
-        {"id": "foreign_key", "text": "Foreign key to ideas table", "type": "grep_present", "file": "src/db.rs", "pattern": "FOREIGN KEY.*idea_id.*REFERENCES ideas"},
-        {"id": "index_idea", "text": "Index on idea_id created", "type": "grep_present", "file": "src/db.rs", "pattern": "idx_fc_idea"},
-        {"id": "insert_method", "text": "insert_feature_card method exists", "type": "grep_present", "file": "src/db.rs", "pattern": "fn insert_feature_card"},
-        {"id": "get_method", "text": "get_feature_cards_by_idea method exists", "type": "grep_present", "file": "src/db.rs", "pattern": "fn get_feature_cards_by_idea"},
-        {"id": "struct_defined", "text": "FeatureCard struct defined", "type": "grep_present", "file": "src/db.rs", "pattern": "struct FeatureCard"},
-        {"id": "tests_pass", "text": "cargo test succeeds", "type": "test"}
+        {"id": "enum_variant", "text": "PriorArtCluster variant in PipelineStep", "type": "grep_present", "file": "src/pipeline/state.rs", "pattern": "PriorArtCluster"},
+        {"id": "total_steps_updated", "text": "TOTAL_STEPS incremented", "type": "grep_present", "file": "src/pipeline/state.rs", "pattern": "TOTAL_STEPS.*=.*14"},
+        {"id": "next_chain_correct", "text": "Step inserted in next() chain correctly", "type": "grep_present", "file": "src/pipeline/state.rs", "pattern": "PriorArtCluster"},
+        {"id": "context_field", "text": "Cluster data field added to PipelineContext", "type": "grep_present", "file": "src/pipeline/context.rs", "pattern": "cluster|PriorArtCluster"},
+        {"id": "step_file_created", "text": "Step implementation file exists", "type": "grep_present", "path": "src/pipeline/steps/", "pattern": "prior_art_cluster|PriorArtCluster"},
+        {"id": "mod_registered", "text": "Module registered in steps/mod.rs", "type": "grep_present", "file": "src/pipeline/steps/mod.rs", "pattern": "prior_art"},
+        {"id": "runner_dispatch", "text": "Match arm in runner.rs", "type": "grep_present", "file": "src/pipeline/runner.rs", "pattern": "PriorArtCluster"},
+        {"id": "all_index_values_sequential", "text": "All index() values are sequential 0..N", "type": "custom", "check": "index values in state.rs are sequential"},
+        {"id": "test_added", "text": "Test for clustering step exists", "type": "grep_present", "path": "tests/", "pattern": "cluster|prior_art"},
+        {"id": "existing_tests_pass", "text": "All existing tests still pass", "type": "test"}
       ]
     }
   ]

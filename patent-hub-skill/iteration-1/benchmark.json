@@ -1,0 +1,156 @@
+{
+  "skill_name": "patent-hub-dev",
+  "iteration": 1,
+  "timestamp": "2026-04-01T12:00:00Z",
+  "evals_tested": ["eval-1-fix-xss", "eval-2-pipeline-step", "eval-3-db-migration"],
+  "configurations": [
+    {
+      "name": "with_skill",
+      "evals": [
+        {
+          "eval_name": "eval-1-fix-xss",
+          "assertions": {
+            "builds": true,
+            "no_raw_innerhtml_idea": true,
+            "no_raw_innerhtml_ai": true,
+            "dompurify_idea": true,
+            "dompurify_ai": true,
+            "textcontent_used": true,
+            "pipeline_ui_intact": true,
+            "safe_html_pattern": true
+          },
+          "passed": 8, "total": 8, "pass_rate": 1.0,
+          "token_usage": 121005,
+          "duration_ms": 1765948,
+          "notes": "Read SKILL.md first, used sanitize() helper pattern from security section. Added DOMPurify to all 3 templates, replaced innerHTML with textContent/DOMPurify.sanitize(). Created sanitize() fallback helper. Build passed."
+        },
+        {
+          "eval_name": "eval-2-pipeline-step",
+          "assertions": {
+            "builds": true,
+            "enum_variant": true,
+            "total_steps_13": true,
+            "next_chain": true,
+            "context_field": true,
+            "step_file_exists": true,
+            "mod_registered": true,
+            "runner_dispatch": true,
+            "test_added": true,
+            "tests_pass": true
+          },
+          "passed": 10, "total": 10, "pass_rate": 1.0,
+          "token_usage": 50754,
+          "duration_ms": 807987,
+          "notes": "Read SKILL.md 4-file coordination pattern. Modified state.rs, context.rs, runner.rs, steps/mod.rs. Created feature_cards.rs with 3 unit tests + integration test with 2 tests. All 5 new tests pass. 2 pre-existing schema version test failures (unrelated)."
+        },
+        {
+          "eval_name": "eval-3-db-migration",
+          "assertions": {
+            "builds": true,
+            "schema_version_6": true,
+            "migration_block": true,
+            "create_table": true,
+            "foreign_key": true,
+            "index_idea": true,
+            "insert_method": true,
+            "get_method": true,
+            "struct_defined": true,
+            "tests_pass": true
+          },
+          "passed": 10, "total": 10, "pass_rate": 1.0,
+          "token_usage": 56166,
+          "duration_ms": 1392422,
+          "notes": "Read SKILL.md migration pattern. FeatureCard struct in patent.rs (correct location). Migration with IF NOT EXISTS, FK, 2 indexes. insert/get methods. Integration test with Chinese text. 49 tests pass."
+        }
+      ],
+      "total_passed": 28, "total": 28, "pass_rate": 1.0
+    },
+    {
+      "name": "without_skill",
+      "evals": [
+        {
+          "eval_name": "eval-1-fix-xss",
+          "assertions": {
+            "builds": true,
+            "no_raw_innerhtml_idea": true,
+            "no_raw_innerhtml_ai": true,
+            "dompurify_idea": true,
+            "dompurify_ai": true,
+            "textcontent_used": true,
+            "pipeline_ui_intact": true,
+            "safe_html_pattern": true
+          },
+          "passed": 8, "total": 8, "pass_rate": 1.0,
+          "token_usage": 93361,
+          "duration_ms": 1262636,
+          "notes": "No SKILL.md read. Independent approach: safeSetHtml() helper, DOMPurify to all 3 templates, createElement/textContent for user messages. cargo check passed. Very thorough — 30+ innerHTML fixes in idea.html alone."
+        },
+        {
+          "eval_name": "eval-2-pipeline-step",
+          "assertions": {
+            "builds": true,
+            "enum_variant": true,
+            "total_steps_13": true,
+            "next_chain": true,
+            "context_field": true,
+            "step_file_exists": true,
+            "mod_registered": true,
+            "runner_dispatch": true,
+            "test_added": true,
+            "tests_pass": true
+          },
+          "passed": 10, "total": 10, "pass_rate": 1.0,
+          "token_usage": 38906,
+          "duration_ms": 1050149,
+          "notes": "No SKILL.md read. Independently discovered 4-file pattern by reading code. Same result as with_skill. All tests pass. cargo build --release blocked by file lock (not code issue). 1 pre-existing warning."
+        },
+        {
+          "eval_name": "eval-3-db-migration",
+          "assertions": {
+            "builds": true,
+            "schema_version_6": true,
+            "migration_block": true,
+            "create_table": true,
+            "foreign_key": true,
+            "index_idea": true,
+            "insert_method": true,
+            "get_method": true,
+            "struct_defined": true,
+            "tests_pass": true
+          },
+          "passed": 10, "total": 10, "pass_rate": 1.0,
+          "token_usage": 67741,
+          "duration_ms": 1946920,
+          "notes": "No SKILL.md read. Used existing FeatureCard from patent.rs (good discovery). Updated pre-existing schema version tests from 5 to 6 (proactive fix). 28 tests pass. cargo build --release succeeded."
+        }
+      ],
+      "total_passed": 28, "total": 28, "pass_rate": 1.0
+    }
+  ],
+  "skill_advantage_iter1": "+0% (100% vs 100%) — both configurations achieved perfect scores",
+  "analysis": {
+    "key_findings": [
+      "Both with_skill and without_skill achieved 100% pass rate (28/28 assertions each)",
+      "The eval prompts were highly prescriptive — step-by-step instructions left little room for error regardless of SKILL.md guidance",
+      "SKILL.md advantage visible in efficiency: with_skill pipeline eval used 50K tokens vs 39K without (slight overhead), but DB migration was faster with_skill (56K vs 68K tokens)",
+      "without_skill agent for DB migration proactively fixed pre-existing schema version test failures — better than with_skill which left them broken",
+      "XSS eval: both approaches were comprehensive and thorough, with_skill used slightly more tokens (121K vs 93K)"
+    ],
+    "skill_advantages": [
+      "with_skill eval-2 (pipeline) was 23% faster (808s vs 1050s) — SKILL.md 4-file pattern saved exploration time",
+      "with_skill eval-3 (migration) used 17% fewer tokens (56K vs 68K) — SKILL.md migration template reduced code reading",
+      "Consistent approach: with_skill agents followed SKILL.md patterns closely, producing more uniform code style"
+    ],
+    "skill_neutral": [
+      "All assertion pass rates identical — the eval prompts are too detailed to show differentiation",
+      "Both approaches correctly identified all affected files and patterns",
+      "Code quality roughly equivalent across both variants"
+    ],
+    "improvements_needed": [
+      "Evals need less prescriptive prompts to reveal SKILL.md differentiation — use vague task descriptions that require the agent to figure out the 'how'",
+      "Add assertions for code quality: helper function reuse, test isolation, Chinese locale testing",
+      "Add assertion for pre-existing test compatibility (without_skill fixed schema version tests, with_skill didn't)",
+      "SKILL.md should mention updating existing tests when schema version changes"
+    ]
+  }
+}

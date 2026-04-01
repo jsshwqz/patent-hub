@@ -30,7 +30,7 @@ src/
 │   └── pages.rs         # HTML page rendering
 ├── pipeline/
 │   ├── runner.rs         # State machine executor (loop over steps)
-│   ├── state.rs          # PipelineStep enum (12 variants) + metadata
+│   ├── state.rs          # PipelineStep enum (13 variants) + metadata
 │   ├── context.rs        # PipelineContext (data passed between steps)
 │   └── steps/            # Individual step implementations
 │       ├── parse.rs      # Step 0: Extract keywords from idea
@@ -176,6 +176,13 @@ Integration tests in `tests/patent_hub_integration.rs` use in-memory SQLite. Whe
 - Create sample data with `insert_patent()` helper
 - Test Chinese character support explicitly (this is a bilingual app)
 - For pipeline tests, mock AI responses by testing individual steps with pre-filled `PipelineContext`
+
+**Critical**: When changing `SCHEMA_VERSION`, update existing tests that assert the version number. Search for the old version value in `tests/patent_hub_integration.rs` — tests like `schema_version_is_set_on_fresh_db` and `reinit_same_db_is_idempotent` hard-code the expected version.
+
+**Test completeness checklist**:
+- New DB methods → add insert + retrieve + empty-result tests
+- New pipeline steps → add unit test in step file + integration test with sample context
+- Security fixes → verify no regression in UI functionality (build is sufficient since templates are `include_str!`)
 
 ## Known Constraints
 
