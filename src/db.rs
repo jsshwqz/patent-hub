@@ -880,6 +880,16 @@ impl Database {
         Ok(())
     }
 
+    /// 删除创意关联的所有特征卡片 / Delete all feature cards for an idea
+    pub fn delete_feature_cards_by_idea(&self, idea_id: &str) -> Result<()> {
+        let c = self.conn();
+        c.execute(
+            "DELETE FROM feature_cards WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+        Ok(())
+    }
+
     pub fn list_ideas(&self) -> Result<Vec<IdeaSummary>> {
         let c = self.conn();
         let mut stmt = c.prepare(

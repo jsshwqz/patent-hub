@@ -214,7 +214,8 @@ pub async fn api_idea_delete(
     State(s): State<AppState>,
     Path(idea_id): Path<String>,
 ) -> Json<serde_json::Value> {
-    // Delete messages first, then idea
+    // 级联删除：特征卡片 → 消息 → 创意 / Cascade delete: feature cards → messages → idea
+    let _ = s.db.delete_feature_cards_by_idea(&idea_id);
     let _ = s.db.delete_idea_messages(&idea_id);
     match s.db.delete_idea(&idea_id) {
         Ok(_) => Json(json!({"status": "ok"})),
