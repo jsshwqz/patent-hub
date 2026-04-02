@@ -662,7 +662,7 @@ async function runRiskAssessment() {
         var resp = await fetch('/api/ai/risk', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({product_description: productDesc, patent_ids: patentIds}) });
         var data = await resp.json();
         if (data.status === 'ok') {
-            resultDiv.innerHTML = '<div style="padding:12px;background:#0d1117;border-radius:6px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto;">' + escapeHtml(data.assessment).replace(/\n/g, '<br>') + '</div>';
+            resultDiv.innerHTML = '<div style="padding:12px;background:#0d1117;border-radius:6px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto;">' + escapeHtml(data.analysis).replace(/\n/g, '<br>') + '</div>';
         } else { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(data.error || '评估失败') + '</p>'; }
     } catch(e) { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(e.message) + '</p>'; }
 }
