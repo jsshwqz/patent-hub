@@ -755,7 +755,7 @@ pub async fn api_patent_image_proxy(
     let allowed = url
         .strip_prefix("https://")
         .and_then(|rest| rest.split('/').next())
-        .map(|host| ALLOWED_DOMAINS.iter().any(|d| host == *d))
+        .map(|host| ALLOWED_DOMAINS.contains(&host))
         .unwrap_or(false);
     if !allowed {
         return (

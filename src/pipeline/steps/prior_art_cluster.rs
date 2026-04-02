@@ -64,10 +64,10 @@ pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
 
         for (ci, (rep_idx, _, _)) in clusters.iter().enumerate() {
             let sim = jaccard_similarity(token_set, &token_sets[*rep_idx]);
-            if sim >= CLUSTER_SIMILARITY_THRESHOLD {
-                if best_cluster.is_none() || sim > best_cluster.unwrap().1 {
-                    best_cluster = Some((ci, sim));
-                }
+            if sim >= CLUSTER_SIMILARITY_THRESHOLD
+                && (best_cluster.is_none() || sim > best_cluster.unwrap().1)
+            {
+                best_cluster = Some((ci, sim));
             }
         }
 

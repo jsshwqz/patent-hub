@@ -434,10 +434,10 @@ impl AiClient {
                                     if let Some(json_str) = line.strip_prefix("data: ") {
                                         if let Ok(val) = serde_json::from_str::<serde_json::Value>(json_str) {
                                             if let Some(content) = val["choices"][0]["delta"]["content"].as_str() {
-                                                if !content.is_empty() {
-                                                    if tx.send(content.to_string()).await.is_err() {
-                                                        return;
-                                                    }
+                                                if !content.is_empty()
+                                                    && tx.send(content.to_string()).await.is_err()
+                                                {
+                                                    return;
                                                 }
                                             }
                                         }
