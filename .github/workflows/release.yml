@@ -145,6 +145,65 @@ jobs:
           # Don't auto-generate release notes (managed via CHANGELOG.md, avoids duplicate appends from matrix jobs)
           generate_release_notes: false
 
+  # ── 同步 Release 到 Gitee ─────────────────────────────────────────────
+  sync-gitee:
+    name: Sync Release to Gitee
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get tag name
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Download all assets from GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p assets
+          gh release download "${{ steps.tag.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --dir assets || true
+          ls -la assets/
+
+      - name: Create Gitee Release and upload assets
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # 创建 Gitee Release
+          RELEASE_RESP=$(curl -s -X POST \
+            "https://gitee.com/api/v5/repos/jsshwqz/patent-hub/releases" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"access_token\": \"${GITEE_TOKEN}\",
+              \"tag_name\": \"${TAG}\",
+              \"name\": \"${TAG}\",
+              \"body\": \"从 GitHub Actions 自动同步。详细更新日志见 CHANGELOG.md\",
+              \"prerelease\": false
+            }")
+
+          RELEASE_ID=$(echo "$RELEASE_RESP" | jq -r '.id')
+          echo "Gitee Release ID: $RELEASE_ID"
+
+          if [ "$RELEASE_ID" = "null" ] || [ -z "$RELEASE_ID" ]; then
+            echo "::warning::Failed to create Gitee release, response: $RELEASE_RESP"
+            exit 0
+          fi
+
+          # 上传所有构建产物
+          for file in assets/*; do
+            [ -f "$file" ] || continue
+            echo "Uploading $(basename "$file")..."
+            curl -s -X POST \
+              "https://gitee.com/api/v5/repos/jsshwqz/patent-hub/releases/${RELEASE_ID}/attach_files" \
+              -H "Content-Type: multipart/form-data" \
+              -F "access_token=${GITEE_TOKEN}" \
+              -F "file=@${file}"
+            echo ""
+          done
+
+          echo "✅ Gitee release synced: ${TAG}"
+
   # ── 移动端 / 桌面端构建已移至独立仓库 ──────────────────────────────────
   # Android:   已拆出（cdylib 不再在主仓编译）
   # iOS:       https://gitee.com/jsshwqz/patent-hub-ios
