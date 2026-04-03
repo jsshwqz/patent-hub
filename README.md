@@ -1,12 +1,23 @@
-# Patent Hub
+# Patent Hub — 研发助手
 
 [![CI](https://github.com/jsshwqz/patent-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/jsshwqz/patent-hub/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/jsshwqz/patent-hub)](https://github.com/jsshwqz/patent-hub/releases)
 
-> **研发助手** -- AI 辅助的技术验证工具。支持专利/文献检索、方案可行性分析、多角度 AI 推演，帮助研发人员快速验证想法。
+> AI 辅助的技术验证工具。支持专利/文献检索、方案可行性分析、多角度 AI 推演，帮助研发人员快速验证想法。
 
-[English](#english) | [Gitee 镜像](https://gitee.com/jsshwqz/patent-hub)
+### [📥 下载最新版](https://github.com/jsshwqz/patent-hub/releases/latest) ｜ [📖 使用文档](https://github.com/jsshwqz/patent-hub/wiki) ｜ [Gitee 镜像](https://gitee.com/jsshwqz/patent-hub)
+
+| 平台 | 下载 |
+|------|------|
+| Windows | [📦 patent-hub-windows.zip](https://github.com/jsshwqz/patent-hub/releases/latest) — 解压后双击 `start.bat` |
+| Linux / macOS | [📦 patent-hub-linux.tar.gz](https://github.com/jsshwqz/patent-hub/releases/latest) — 解压后运行 `./start.sh` |
+| Android | [📱 patent-hub-android.apk](https://github.com/jsshwqz/patent-hub/releases/latest) — 安装即用，内嵌服务器 |
+| Docker | `docker run -p 3000:3000 jsshwqz/patent-hub` |
+
+> 启动后打开浏览器访问 **http://127.0.0.1:3000** 即可使用。无需安装数据库，无需联网（AI 功能需配置 API 密钥）。
+
+[English](#english)
 
 ---
 
