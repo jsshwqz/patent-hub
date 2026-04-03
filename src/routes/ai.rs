@@ -8,6 +8,100 @@ use axum::{
 use futures::stream::Stream;
 use serde_json::json;
 use std::convert::Infallible;
+use reqwest::Client;
+
+/// Quick web search: SerpAPI → Sogou free fallback. Returns formatted context string.
+async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
+    let client = Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .ok()?;
+
+    let has_serp = !serpapi_key.is_empty() && serpapi_key != "your-serpapi-key-here";
+    let mut results: Vec<(String, String, String)> = Vec::new(); // (title, snippet, link)
+
+    if has_serp {
+        if let Ok(resp) = client
+            .get("https://serpapi.com/search.json")
+            .query(&[
+                ("q", query),
+                ("api_key", serpapi_key),
+                ("num", "5"),
+                ("hl", "zh-cn"),
+            ])
+            .send()
+            .await
+        {
+            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                if let Some(items) = json["organic_results"].as_array() {
+                    for r in items.iter().take(5) {
+                        results.push((
+                            r["title"].as_str().unwrap_or("").to_string(),
+                            r["snippet"].as_str().unwrap_or("").to_string(),
+                            r["link"].as_str().unwrap_or("").to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // Sogou free fallback
+    if results.is_empty() {
+        let encoded = urlencoding::encode(query);
+        let url = format!("https://www.sogou.com/web?query={}", encoded);
+        if let Ok(resp) = client
+            .get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .send()
+            .await
+        {
+            if let Ok(html) = resp.text().await {
+                // Simple extraction of results from Sogou HTML
+                for cap in html.split("vrTitle").skip(1).take(5) {
+                    if let Some(title_start) = cap.find('>') {
+                        let after = &cap[title_start + 1..];
+                        if let Some(title_end) = after.find("</") {
+                            let title = after[..title_end]
+                                .replace("<em>", "").replace("</em>", "")
+                                .replace("<!--", "").replace("-->", "")
+                                .trim().to_string();
+                            // Extract snippet
+                            let snippet = if let Some(abs_start) = cap.find("strAbstract") {
+                                let abs = &cap[abs_start..];
+                                if let Some(s) = abs.find('>') {
+                                    let a = &abs[s + 1..];
+                                    if let Some(e) = a.find("</") {
+                                        a[..e].replace("<em>", "").replace("</em>", "").trim().to_string()
+                                    } else { String::new() }
+                                } else { String::new() }
+                            } else { String::new() };
+                            if !title.is_empty() {
+                                results.push((title, snippet, String::new()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if results.is_empty() {
+        return None;
+    }
+
+    let mut context = String::from("【联网搜索结果】\n");
+    for (i, (title, snippet, link)) in results.iter().enumerate() {
+        context.push_str(&format!("{}. {}\n", i + 1, title));
+        if !snippet.is_empty() {
+            context.push_str(&format!("   {}\n", snippet));
+        }
+        if !link.is_empty() {
+            context.push_str(&format!("   {}\n", link));
+        }
+    }
+    Some(context)
+}
 
 /// Estimate token count (CJK ~1.5 tok/char, ASCII ~0.25 tok/char)
 fn estimate_tokens(s: &str) -> usize {
@@ -107,6 +201,15 @@ pub async fn api_ai_chat(
     Json(req): Json<AiChatRequest>,
 ) -> Json<AiResponse> {
     let ai = s.config.read().unwrap().ai_client();
+    let serpapi_key = s.config.read().unwrap().serpapi_key.clone();
+
+    // Optional web search: fetch real-time info before AI response
+    let web_context = if req.web_search {
+        quick_web_search(&req.message, &serpapi_key).await
+    } else {
+        None
+    };
+
     let ctx = req
         .patent_id
         .as_ref()
@@ -119,16 +222,25 @@ pub async fn api_ai_chat(
             )
         });
 
-    let system_prompt = ctx.as_deref().unwrap_or("你是一个技术研发助手，擅长专利分析、技术方案评估和可行性验证。请用中文回答。");
+    // Build system prompt with optional web search results
+    let base_prompt = ctx.as_deref().unwrap_or("你是一个技术研发助手，擅长专利分析、技术方案评估和可行性验证。请用中文回答。");
+    let system_prompt = match &web_context {
+        Some(web) => format!("{}\n\n以下是联网搜索到的最新资料，请结合这些信息回答用户问题：\n{}", base_prompt, web),
+        None => base_prompt.to_string(),
+    };
 
     let result = if req.history.is_empty() {
-        ai.chat(&req.message, ctx.as_deref()).await
+        let ctx_with_web = match &web_context {
+            Some(web) => Some(format!("{}\n{}", ctx.as_deref().unwrap_or(""), web)),
+            None => ctx,
+        };
+        ai.chat(&req.message, ctx_with_web.as_deref()).await
     } else {
         let mut history = req.history;
         history.push(("user".to_string(), req.message));
         // 超过 ~8000 token 时自动压缩早期对话为摘要
         let history = compress_history(&ai, history, 8000).await;
-        ai.chat_with_history(system_prompt, history, 0.7).await
+        ai.chat_with_history(&system_prompt, history, 0.7).await
     };
 
     match result {

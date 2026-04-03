@@ -151,6 +151,14 @@
             <a href="/ai">AI 助手</a>
             <a href="/settings?from=/">设置</a>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+            <a href="https://github.com/jsshwqz/patent-hub/releases/latest" target="_blank" rel="noopener" title="下载安装包" style="color:#8b949e;text-decoration:none;font-size:0.8em;padding:4px 10px;border:1px solid #30363d;border-radius:6px;white-space:nowrap;">📥 下载</a>
+            <a href="https://github.com/jsshwqz/patent-hub#readme" target="_blank" rel="noopener" title="使用文档" style="color:#8b949e;text-decoration:none;font-size:0.8em;padding:4px 10px;border:1px solid #30363d;border-radius:6px;white-space:nowrap;">📖 文档</a>
+            <select onchange="setI18nLang(this.value)" id="lang-switch" style="padding:3px 6px;background:#0d1117;border:1px solid #30363d;color:#8b949e;border-radius:6px;font-size:0.8em;">
+                <option value="zh">中文</option>
+                <option value="en">EN</option>
+            </select>
+        </div>
     </nav>
 
     <main class="hero">
@@ -218,6 +226,14 @@
             </a>
         </div>
 
+        <!-- 服务状态 -->
+        <div id="service-status" style="max-width:700px;margin:0 auto 20px;padding:0 20px;">
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:0.85em;">
+                <a href="/settings?from=/" id="status-ai" style="text-decoration:none;color:#8b949e;background:#161b22;border:1px solid #21262d;border-radius:16px;padding:4px 14px;cursor:pointer;transition:all 0.2s;"></a>
+                <a href="/settings?from=/" id="status-search" style="text-decoration:none;color:#8b949e;background:#161b22;border:1px solid #21262d;border-radius:16px;padding:4px 14px;cursor:pointer;transition:all 0.2s;"></a>
+            </div>
+        </div>
+
         <!-- 快速抓取（折叠，不抢焦点） -->
         <div class="quick-fetch">
             <details>
@@ -235,6 +251,11 @@
         </div>
     </main>
 
+    <footer style="text-align:center;padding:20px;color:#484f58;font-size:0.75em;">
+        v0.4.4 · <a href="https://github.com/jsshwqz/patent-hub" target="_blank" rel="noopener" style="color:#484f58;">GitHub</a> · <a href="https://gitee.com/jsshwqz/patent-hub" target="_blank" rel="noopener" style="color:#484f58;">Gitee</a> · MIT License
+    </footer>
+
+    <script src="/static/i18n.js"></script>
     <script>
     let currentMode = 'chat';
     let uploadedFiles = [];
@@ -387,6 +408,31 @@
         if (e.key === 'Enter' && e.ctrlKey) startFlow();
     });
 
+    // 服务状态检测
+    (async function checkStatus() {
+        try {
+            var resp = await fetch('/api/settings');
+            var data = await resp.json();
+            var aiEl = document.getElementById('status-ai');
+            var searchEl = document.getElementById('status-search');
+            if (data.ai_api_key_configured) {
+                aiEl.textContent = '✅ AI 服务已配置';
+                aiEl.style.color = '#3fb950';
+            } else {
+                aiEl.textContent = '⚠️ AI 未配置 — 点击设置';
+                aiEl.style.color = '#d29922';
+                aiEl.style.borderColor = '#d29922';
+            }
+            if (data.serpapi_key_configured || data.bing_api_key_configured || data.lens_api_key_configured) {
+                searchEl.textContent = '✅ 在线搜索已配置';
+                searchEl.style.color = '#3fb950';
+            } else {
+                searchEl.textContent = 'ℹ️ 在线搜索未配置（可用本地库）';
+                searchEl.style.color = '#8b949e';
+            }
+        } catch(e) {}
+    })();
+
     // 快速抓取
     async function fetchPatent() {
         const num = document.getElementById('fetch-number').value;
@@ -431,6 +477,10 @@
             el.appendChild(catchP);
         }
     }
+
+    // 语言切换初始化
+    var langSw = document.getElementById('lang-switch');
+    if (langSw) langSw.value = i18nLang;
     </script>
 </body>
 </html>

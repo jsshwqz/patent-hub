@@ -35,6 +35,10 @@
             </div>
             <div class="chat-box" id="chat-messages"></div>
             <div class="chat-input">
+                <label id="web-search-toggle" style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:0.85em;color:#8b949e;white-space:nowrap;" title="开启后 AI 会先联网搜索最新资料再回答">
+                    <input type="checkbox" id="web-search-cb" style="accent-color:#1f6feb;">
+                    <span data-i18n="ai.webSearch"></span>
+                </label>
                 <input type="text" id="chat-msg" data-i18n-placeholder="ai.placeholder" autofocus>
                 <button onclick="sendChat()" data-i18n="ai.send"></button>
             </div>
@@ -62,14 +66,14 @@
         var aiDiv = document.createElement('div');
         aiDiv.className = 'msg ai';
         aiDiv.id = loadingId;
-        aiDiv.textContent = t('ai.thinking');
+        aiDiv.textContent = document.getElementById('web-search-cb').checked ? t('ai.searching') : t('ai.thinking');
         box.appendChild(aiDiv);
         box.scrollTop = box.scrollHeight;
         try {
             var resp = await fetch('/api/ai/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ message: msg, history: chatHistory })
+                body: JSON.stringify({ message: msg, history: chatHistory, web_search: document.getElementById('web-search-cb').checked })
             });
             var data = await resp.json();
             document.getElementById(loadingId).innerHTML = DOMPurify.sanitize(escapeHtml(data.content).replace(/\n/g, '<br>'));
