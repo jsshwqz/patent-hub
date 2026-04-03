@@ -289,6 +289,89 @@
         if (pctEl) pctEl.textContent = pct + '%';
     }
 
+    // Auto-start analysis on an existing (already submitted) idea
+    async function runExistingIdea(ideaId, mode) {
+        if (isAnalyzing) return;
+        isAnalyzing = true;
+        var btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = t('idea.analyzing');
+        clearResults();
+
+        try {
+            if (mode === 'quick') {
+                showStatus('analyzing', '<span class="spinner"></span>' + (i18nLang === 'en' ? 'Quick validation in progress...' : '快速验证中...'));
+                var analyzeResp = await fetch('/api/idea/analyze', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: ideaId }),
+                });
+                var analyzeData = await analyzeResp.json();
+                if (analyzeData.status === 'ok') {
+                    showStatus('done', i18nLang === 'en' ? 'Quick validation complete' : '快速验证完成');
+                    displayResults(analyzeData.idea);
+                    loadHistory();
+                    showDiscussionPanel();
+                } else {
+                    showStatus('error', analyzeData.message || t('idea.analyzeFail'));
+                }
+            } else {
+                document.getElementById('status-area').innerHTML = DOMPurify.sanitize(buildPipelineUI());
+                await new Promise(function(resolve) {
+                    var eventSource = new EventSource('/api/idea/' + ideaId + '/progress');
+                    var pipelineStarted = false;
+                    var timeout = setTimeout(function() { eventSource.close(); resolve(); }, 300000);
+
+                    eventSource.onopen = function() {
+                        if (!pipelineStarted) {
+                            pipelineStarted = true;
+                            fetch('/api/idea/pipeline', {
+                                method: 'POST', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ id: ideaId }),
+                            });
+                        }
+                    };
+                    eventSource.onmessage = function(e) {
+                        try {
+                            var progress = JSON.parse(e.data);
+                            updatePipelineStep(progress.step_index, progress.status, progress.sub_step || null, progress.sub_progress || null, progress.message || null);
+                        } catch(err) {}
+                    };
+                    eventSource.addEventListener('done', function() { clearTimeout(timeout); eventSource.close(); resolve(); });
+                    eventSource.onerror = function() {
+                        clearTimeout(timeout); eventSource.close();
+                        if (!pipelineStarted) {
+                            pipelineStarted = true;
+                            fetch('/api/idea/pipeline', {
+                                method: 'POST', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ id: ideaId }),
+                            });
+                        }
+                        resolve();
+                    };
+                });
+                var reportResp = await fetch('/api/idea/' + ideaId + '/report');
+                var reportData = await reportResp.json();
+                if (reportData.status === 'ok') {
+                    var fill = document.getElementById('pipeline-bar-fill');
+                    var pctEl = document.getElementById('pipeline-percent');
+                    if (fill) { fill.style.width = '100%'; fill.style.background = '#238636'; }
+                    if (pctEl) pctEl.textContent = '100% ✓';
+                    displayResults(reportData.report);
+                    loadHistory();
+                    showDiscussionPanel();
+                } else {
+                    showStatus('error', reportData.message || t('idea.analyzeFail'));
+                }
+            }
+        } catch(e) {
+            showStatus('error', t('idea.analyzeFail') + '：' + e.message);
+        } finally {
+            isAnalyzing = false;
+            btn.disabled = false;
+            btn.textContent = t('idea.submit');
+        }
+    }
+
     async function submitIdea() {
         const title = document.getElementById('idea-title').value.trim();
         const desc = document.getElementById('idea-desc').value.trim();
@@ -931,14 +1014,19 @@
     loadHistory();
 
     // Handle URL params from index.html redirect (?id=xxx&autostart=quick|deep)
-    (function() {
+    (async function() {
         var params = new URLSearchParams(window.location.search);
         var ideaId = params.get('id');
         var autostart = params.get('autostart');
         if (ideaId) {
-            loadIdea(ideaId);
+            await loadIdea(ideaId);
             if (autostart === 'quick' || autostart === 'deep') {
                 setAnalysisMode(autostart);
+                // Auto-trigger analysis if idea is not already done/error
+                var statusEl = document.querySelector('#status-area .status-done, #status-area .status-error');
+                if (!statusEl && !isAnalyzing && currentIdeaId) {
+                    runExistingIdea(currentIdeaId, autostart);
+                }
             }
         }
     })();

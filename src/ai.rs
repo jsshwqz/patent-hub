@@ -332,6 +332,23 @@ impl AiClient {
         Err(last_err)
     }
 
+    /// 带完整消息历史的聊天（用于多轮讨论保持上下文）
+    pub async fn chat_with_history(
+        &self,
+        system_prompt: &str,
+        history: Vec<(String, String)>, // (role, content) pairs
+        temperature: f32,
+    ) -> Result<String> {
+        let mut messages = vec![Message {
+            role: "system".into(),
+            content: system_prompt.to_string(),
+        }];
+        for (role, content) in history {
+            messages.push(Message { role, content });
+        }
+        self.send_chat(messages, temperature).await
+    }
+
     /// 自定义 system prompt + temperature 的聊天（用于多维推演引擎）
     pub async fn chat_with_system(
         &self,

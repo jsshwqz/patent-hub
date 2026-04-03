@@ -627,7 +627,7 @@ async function compareMatrix() {
         var resp = await fetch('/api/ai/compare-matrix', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({patent_ids: ids}) });
         var data = await resp.json();
         if (data.status === 'ok') {
-            resultDiv.innerHTML = '<h3 style="color:#8b5cf6;margin-bottom:12px;">📊 技术对比矩阵</h3><div style="padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;">' + escapeHtml(data.matrix).replace(/\n/g, '<br>') + '</div>';
+            resultDiv.innerHTML = '<h3 style="color:#8b5cf6;margin-bottom:12px;">📊 技术对比矩阵</h3><div style="padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;">' + escapeHtml(data.analysis).replace(/\n/g, '<br>') + '</div>';
         } else { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(data.error || '对比失败') + '</p>'; }
     } catch(e) { resultDiv.innerHTML = '<p style="color:#f85149;">❌ ' + escapeHtml(e.message) + '</p>'; }
 }
@@ -641,8 +641,8 @@ function toggleRiskModal() {
         + '<h3 style="color:#da3633;margin:0 0 16px;">⚠️ 侵权风险评估</h3>'
         + '<label style="color:#8b949e;font-size:0.85em;">产品/技术描述</label>'
         + '<textarea id="risk-product" rows="4" style="width:100%;padding:8px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;margin:4px 0 12px;" placeholder="描述你的产品或技术方案..."></textarea>'
-        + '<label style="color:#8b949e;font-size:0.85em;">专利号（逗号分隔，或先在搜索结果中勾选）</label>'
-        + '<input id="risk-patents" type="text" value="' + escapeHtml(ids) + '" style="width:100%;padding:8px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;margin:4px 0 16px;" placeholder="CN109028151B, US8839628B2">'
+        + '<label style="color:#8b949e;font-size:0.85em;">已收录的专利号或 ID（逗号分隔，或先在搜索结果中勾选）</label>'
+        + '<input id="risk-patents" type="text" value="' + escapeHtml(ids) + '" style="width:100%;padding:8px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;margin:4px 0 16px;" placeholder="先在搜索结果中勾选，或输入已收录的专利号">'
         + '<div style="display:flex;gap:8px;">'
         + '<button onclick="runRiskAssessment()" style="background:#da3633;padding:8px 20px;border-radius:6px;color:white;border:none;cursor:pointer;flex:1;">开始评估</button>'
         + '<button onclick="toggleRiskModal()" style="background:#21262d;padding:8px 20px;border-radius:6px;color:#c9d1d9;border:none;cursor:pointer;">取消</button></div>'

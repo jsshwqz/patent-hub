@@ -346,21 +346,18 @@ pub async fn api_idea_chat(
     );
 
     // Build message history with smart windowing
-    let mut messages = vec![];
-
-    // Use recent messages only (old ones already compressed into summary)
     let recent_history: Vec<_> = if history.len() > keep_recent {
         history[history.len() - keep_recent..].to_vec()
     } else {
         history.clone()
     };
 
+    let mut chat_history: Vec<(String, String)> = Vec::new();
     for (_id, role, content, _ts) in &recent_history {
-        messages.push(json!({"role": role, "content": content}));
+        chat_history.push((role.clone(), content.clone()));
     }
-
     // Add current user message
-    messages.push(json!({"role": "user", "content": user_msg}));
+    chat_history.push(("user".into(), user_msg.to_string()));
 
     // Save user message to DB
     let user_msg_id = uuid::Uuid::new_v4().to_string();
@@ -370,9 +367,9 @@ pub async fn api_idea_chat(
         return Json(json!({"error": format!("保存消息失败: {}", e)}));
     }
 
-    // Call AI with full context
+    // Call AI with full message history (preserves multi-turn context)
     let ai = s.config.read().unwrap().ai_client();
-    let ai_response = match ai.chat(user_msg, Some(&system_context)).await {
+    let ai_response = match ai.chat_with_history(&system_context, chat_history, 0.7).await {
         Ok(content) => content,
         Err(e) => {
             return Json(json!({"error": format!("AI 响应失败: {}", e)}));

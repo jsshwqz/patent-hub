@@ -99,7 +99,7 @@ pub async fn api_ai_compare(
         Ok(Some(p)) => p,
         _ => {
             return Json(AiResponse {
-                content: "专利1未找到".into(),
+                content: format!("专利1「{}」未找到。请确认该专利已通过搜索页收录到本地库。", id1),
             })
         }
     };
@@ -107,7 +107,7 @@ pub async fn api_ai_compare(
         Ok(Some(p)) => p,
         _ => {
             return Json(AiResponse {
-                content: "专利2未找到".into(),
+                content: format!("专利2「{}」未找到。请确认该专利已通过搜索页收录到本地库。", id2),
             })
         }
     };
@@ -265,6 +265,7 @@ pub async fn api_ai_risk_assessment(
     }
 
     let mut patents_info = String::new();
+    let mut not_found: Vec<String> = Vec::new();
     for (i, id) in ids.iter().enumerate() {
         if let Ok(Some(p)) = s.db.get_patent(id) {
             let claims_preview: String = p.claims.chars().take(800).collect();
@@ -277,11 +278,16 @@ pub async fn api_ai_risk_assessment(
                 p.abstract_text,
                 claims_preview
             ));
+        } else {
+            not_found.push(id.to_string());
         }
     }
 
     if patents_info.is_empty() {
-        return Json(json!({"error": "未找到指定的专利"}));
+        return Json(json!({"error": format!(
+            "未找到指定的专利「{}」。请确认这些专利已通过搜索页收录到本地库（支持专利号或内部 ID）。",
+            not_found.join(", ")
+        )}));
     }
 
     let ai = s.config.read().unwrap().ai_client();
@@ -347,8 +353,12 @@ pub async fn api_ai_batch_summarize(
     }
 
     let mut patents_data: Vec<(String, String, String)> = Vec::new();
+    // Keep patent_number + title for response enrichment
+    let mut patent_meta: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new();
     for id in &ids {
         if let Ok(Some(p)) = s.db.get_patent(id) {
+            patent_meta.insert(p.id.clone(), (p.patent_number.clone(), p.title.clone()));
             patents_data.push((p.id.clone(), p.title.clone(), p.abstract_text.clone()));
         }
     }
@@ -358,9 +368,15 @@ pub async fn api_ai_batch_summarize(
 
     let summaries: Vec<serde_json::Value> = results
         .into_iter()
-        .map(|(id, result)| match result {
-            Ok(summary) => json!({"id": id, "summary": summary}),
-            Err(e) => json!({"id": id, "error": format!("{}", e)}),
+        .map(|(id, result)| {
+            let (pn, title) = patent_meta
+                .get(&id)
+                .cloned()
+                .unwrap_or_default();
+            match result {
+                Ok(summary) => json!({"id": id, "patent_number": pn, "title": title, "summary": summary}),
+                Err(e) => json!({"id": id, "patent_number": pn, "title": title, "error": format!("{}", e)}),
+            }
         })
         .collect();
 
