@@ -1,8 +1,9 @@
 # 研发助手 (Patent Hub)
 
-[![CI](https://github.com/jsshwqz/patent-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/jsshwqz/patent-hub/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/jsshwqz/patent-hub)](https://github.com/jsshwqz/patent-hub/releases)
+
+**仓库地址：** [GitHub](https://github.com/jsshwqz/patent-hub) ｜ [Gitee（国内）](https://gitee.com/jsshwqz/patent-hub)
 
 > AI 辅助的技术验证工具。支持专利/文献检索、方案可行性分析、多角度 AI 推演，帮助研发人员快速验证想法。
 
@@ -46,7 +47,11 @@
 ### 源码运行
 
 ```bash
+# GitHub
 git clone https://github.com/jsshwqz/patent-hub.git
+# 或 Gitee（国内快）
+git clone https://gitee.com/jsshwqz/patent-hub.git
+
 cd patent-hub
 cp .env.example .env
 # 编辑 .env 填入 API 密钥（可选）
@@ -55,7 +60,7 @@ cargo run --release --bin patent-hub
 
 ### 使用发布包
 
-1. 从 [Releases](https://github.com/jsshwqz/patent-hub/releases) 下载
+1. 从 [GitHub Releases](https://github.com/jsshwqz/patent-hub/releases) 或 [Gitee Releases](https://gitee.com/jsshwqz/patent-hub/releases) 下载
 2. 解压
 3. 运行 `start.bat`（Windows）或 `./start.sh`（Linux/macOS）
 4. 打开 http://127.0.0.1:3000
@@ -69,7 +74,7 @@ docker run -p 3000:3000 -v patent-data:/data patent-hub
 
 ### Android
 
-从 [Releases](https://github.com/jsshwqz/patent-hub/releases) 下载 `patent-hub-android.apk` 安装即可。内嵌 Axum 服务器，本地运行，无需联网。
+从 [GitHub Releases](https://github.com/jsshwqz/patent-hub/releases) 或 [Gitee Releases](https://gitee.com/jsshwqz/patent-hub/releases) 下载 `patent-hub-android.apk` 安装即可。内嵌 Axum 服务器，本地运行，无需联网。
 
 ---
 
@@ -245,7 +250,11 @@ patent-hub/                # Rust 主仓
 #### Run from Source
 
 ```bash
+# GitHub
 git clone https://github.com/jsshwqz/patent-hub.git
+# or Gitee (faster in China)
+git clone https://gitee.com/jsshwqz/patent-hub.git
+
 cd patent-hub
 cp .env.example .env
 # Edit .env with your API keys (optional)
@@ -268,7 +277,7 @@ docker run -p 3000:3000 -v patent-data:/data patent-hub
 
 #### Android
 
-Download `patent-hub-android.apk` from [Releases](https://github.com/jsshwqz/patent-hub/releases). Embedded Axum server runs locally, no internet required.
+Download `patent-hub-android.apk` from [GitHub Releases](https://github.com/jsshwqz/patent-hub/releases) or [Gitee Releases](https://gitee.com/jsshwqz/patent-hub/releases). Embedded Axum server runs locally, no internet required.
 
 ### Configuration
 
