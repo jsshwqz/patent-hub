@@ -5,6 +5,26 @@ All notable changes are documented here. Format based on [Keep a Changelog](http
 
 ---
 
+## [v0.4.4] - 2026-04-03
+
+### 新增 / Added
+- **多维深度推演引擎** -- AI 深度分析升级为 7 轮多维推演（科学推导/辩证批判/知识审计/本质还原/减法思维/跨域映射 + 跨维度合成）
+  Multi-dimensional deep reasoning engine -- 7-round analysis (scientific deduction / dialectical critique / knowledge audit / essence reduction / subtractive thinking / cross-domain mapping + synthesis)
+
+### 修复 / Fixed
+- 侵权评估结果字段名修正（assessment → analysis，前端可正确显示）
+  Risk assessment field name fix (assessment → analysis)
+- 创意删除级联清理特征卡片（FK constraint 修复）
+  Idea deletion cascades to feature cards (FK constraint fix)
+- 13 步文案全面修正（模板 + 注释中残留的 "12 步" 全部更新）
+  All "12-step" text updated to "13-step" across templates and comments
+- 设置页备用 AI 表单 XSS 加固（innerHTML → createElement）
+  Settings page fallback AI form XSS hardening
+- gitignore 清理（忽略临时测试文件）
+  gitignore cleanup for temp test files
+
+---
+
 ## [v0.4.3] - 2026-04-02
 
 ### 新增 / Added
