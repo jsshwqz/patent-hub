@@ -74,6 +74,24 @@ pub struct SearchResult {
     pub source: String,
 }
 
+/// 单个维度的推演结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DimensionInsight {
+    pub dimension: String,
+    pub label: String,
+    pub reasoning: String,
+    pub key_insight: String,
+}
+
+/// 多维深度推演结果
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DeepReasoningResult {
+    pub dimensions: Vec<DimensionInsight>,
+    pub synthesis: String,
+    pub novel_directions: Vec<String>,
+    pub blind_spots: Vec<String>,
+}
+
 /// 流水线进度消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineProgress {
@@ -82,6 +100,10 @@ pub struct PipelineProgress {
     pub total_steps: usize,
     pub status: StepStatus,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_step: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_progress: Option<f64>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -136,6 +158,10 @@ pub struct PipelineContext {
     pub ai_analysis: String,
     pub action_plan: String,
 
+    // 多维深度推演结果
+    #[serde(default)]
+    pub deep_reasoning: DeepReasoningResult,
+
     // 元数据
     pub current_step: PipelineStep,
     pub step_results: Vec<StepResult>,
@@ -163,6 +189,7 @@ impl PipelineContext {
             score_breakdown: ScoreBreakdown::default(),
             ai_analysis: String::new(),
             action_plan: String::new(),
+            deep_reasoning: DeepReasoningResult::default(),
             current_step: PipelineStep::ParseInput,
             step_results: Vec::new(),
         }

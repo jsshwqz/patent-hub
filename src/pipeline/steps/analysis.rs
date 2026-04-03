@@ -7,11 +7,27 @@
 use crate::ai::AiClient;
 use crate::db::Database;
 use crate::patent::FeatureCard;
-use crate::pipeline::context::PipelineContext;
+use crate::pipeline::context::{PipelineContext, PipelineProgress};
 use anyhow::Result;
 
-/// 执行 Step 11: AI 深度分析
-pub async fn deep_analysis(ctx: &mut PipelineContext, ai: &AiClient) -> Result<()> {
+/// 执行 Step 11: AI 深度分析（多维推演引擎）
+pub async fn deep_analysis(
+    ctx: &mut PipelineContext,
+    ai: &AiClient,
+    progress_tx: &Option<tokio::sync::broadcast::Sender<PipelineProgress>>,
+) -> Result<()> {
+    // 运行多维深度推演引擎
+    let result = super::deep_reasoning::run_deep_reasoning(ctx, ai, progress_tx).await?;
+
+    // 格式化为 Markdown 报告（兼容旧的 ai_analysis 字段）
+    ctx.ai_analysis = super::deep_reasoning::format_report(&result);
+    ctx.deep_reasoning = result;
+
+    Ok(())
+}
+
+/// 执行 Step 11 的降级版本：单次 AI 调用（用于快速模式或推演引擎失败时）
+pub async fn deep_analysis_simple(ctx: &mut PipelineContext, ai: &AiClient) -> Result<()> {
     // 构建结构化数据包，让 AI 基于代码计算的结果分析
     let top_matches_summary: String = ctx
         .top_matches

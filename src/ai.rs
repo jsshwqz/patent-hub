@@ -278,7 +278,8 @@ impl AiClient {
 
     /// 全局超时上限，避免多 provider 叠加导致用户等待过久
     /// Global timeout cap to prevent multi-provider cascade from blocking too long
-    const GLOBAL_TIMEOUT_SECS: u64 = 60;
+    /// 120s to support deep reasoning engine's longer prompts
+    const GLOBAL_TIMEOUT_SECS: u64 = 120;
 
     /// 带全局超时的 AI 调用入口 / Chat completion with global timeout across all providers
     async fn send_chat(&self, messages: Vec<Message>, temperature: f32) -> Result<String> {
@@ -329,6 +330,26 @@ impl AiClient {
         }
 
         Err(last_err)
+    }
+
+    /// 自定义 system prompt + temperature 的聊天（用于多维推演引擎）
+    pub async fn chat_with_system(
+        &self,
+        system_prompt: &str,
+        user_msg: &str,
+        temperature: f32,
+    ) -> Result<String> {
+        let messages = vec![
+            Message {
+                role: "system".into(),
+                content: system_prompt.to_string(),
+            },
+            Message {
+                role: "user".into(),
+                content: user_msg.to_string(),
+            },
+        ];
+        self.send_chat(messages, temperature).await
     }
 
     pub async fn chat(&self, user_msg: &str, context: Option<&str>) -> Result<String> {

@@ -189,6 +189,19 @@
 
     function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+    function toggleDimension(id) {
+        var el = document.getElementById(id);
+        var arrow = document.getElementById(id + '-arrow');
+        if (!el) return;
+        if (el.style.display === 'none') {
+            el.style.display = 'block';
+            if (arrow) arrow.style.transform = 'rotate(90deg)';
+        } else {
+            el.style.display = 'none';
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+        }
+    }
+
     function reapplyPage() {
         applyI18nCommon();
         loadHistory();
@@ -205,7 +218,7 @@
         { key: 'rank_and_filter', zh: '排序过滤', en: 'Rank & filter', type: 'code' },
         { key: 'detect_contradictions', zh: '矛盾信号检测', en: 'Detect contradictions', type: 'code' },
         { key: 'score_novelty', zh: '新颖性评分', en: 'Score novelty', type: 'code' },
-        { key: 'ai_deep_analysis', zh: 'AI 深度分析', en: 'AI deep analysis', type: 'llm' },
+        { key: 'ai_deep_analysis', zh: '多维深度推演', en: 'Multi-dim reasoning', type: 'llm' },
         { key: 'ai_action_plan', zh: 'AI 行动方案', en: 'AI action plan', type: 'llm' },
         { key: 'finalize', zh: '生成报告', en: 'Generate report', type: 'code' },
     ];
@@ -227,7 +240,7 @@
             '<div class="progress-steps" id="pipeline-steps">' + stepsHtml + '</div></div>';
     }
 
-    function updatePipelineStep(stepIndex, status) {
+    function updatePipelineStep(stepIndex, status, subStep, subProgress, message) {
         var el = document.getElementById('pipeline-step-' + stepIndex);
         if (!el) return;
         el.className = 'step ' + status;
@@ -237,6 +250,35 @@
         else if (status === 'skipped') icon = '⏭️';
         else if (status === 'error') icon = '❌';
         el.querySelector('.step-icon').innerHTML = DOMPurify.sanitize(icon);
+
+        // 多维推演子进度显示
+        var subEl = document.getElementById('deep-reasoning-sub');
+        if (subStep && stepIndex === 10) {
+            // Step 11 = index 10 = AiDeepAnalysis
+            var dimLabels = {
+                'scientific': '🔬 科学推导', 'dialectical': '⚡ 辩证批判',
+                'epistemological': '🔍 知识审计', 'phenomenological': '🌊 本质还原',
+                'eastern': '☯️ 减法思维', 'topological': '🔗 跨域映射',
+                'synthesis': '🔮 跨维度合成'
+            };
+            var label = dimLabels[subStep] || subStep;
+            if (!subEl) {
+                subEl = document.createElement('div');
+                subEl.id = 'deep-reasoning-sub';
+                subEl.style.cssText = 'margin-top:8px;padding:8px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;font-size:0.85em;';
+                el.appendChild(subEl);
+            }
+            var pctVal = subProgress ? Math.round(subProgress * 100) : 0;
+            subEl.innerHTML = DOMPurify.sanitize(
+                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<span style="color:#d2a8ff;">' + label + '</span>' +
+                '<span style="color:#8b949e;">' + pctVal + '%</span></div>' +
+                '<div style="height:3px;background:#21262d;border-radius:2px;margin-top:4px;">' +
+                '<div style="height:100%;width:' + pctVal + '%;background:#d2a8ff;border-radius:2px;transition:width 0.3s;"></div></div>'
+            );
+        } else if (subEl && status === 'done') {
+            subEl.remove();
+        }
 
         // Update progress bar
         var doneCount = document.querySelectorAll('#pipeline-steps .step.done, #pipeline-steps .step.skipped').length;
@@ -321,7 +363,13 @@
                     eventSource.onmessage = function(e) {
                         try {
                             var progress = JSON.parse(e.data);
-                            updatePipelineStep(progress.step_index, progress.status);
+                            updatePipelineStep(
+                                progress.step_index,
+                                progress.status,
+                                progress.sub_step || null,
+                                progress.sub_progress || null,
+                                progress.message || null
+                            );
                         } catch(err) {}
                     };
 
@@ -374,6 +422,62 @@
         }
     }
 
+    // 多维推演结果渲染：手风琴 UI
+    function renderDeepReasoningUI(analysis) {
+        var dims = [
+            { key: 'scientific', icon: '🔬', label: '科学推导', color: '#58a6ff' },
+            { key: 'dialectical', icon: '⚡', label: '辩证批判', color: '#f85149' },
+            { key: 'epistemological', icon: '🔍', label: '知识审计', color: '#d2a8ff' },
+            { key: 'phenomenological', icon: '🌊', label: '本质还原', color: '#3fb950' },
+            { key: 'eastern', icon: '☯️', label: '减法思维', color: '#f0883e' },
+            { key: 'topological', icon: '🔗', label: '跨域映射', color: '#79c0ff' },
+        ];
+
+        // 按标记分割各部分
+        var sections = analysis.split('---');
+        var synthesisSection = '';
+        var dimSections = {};
+
+        sections.forEach(function(sec) {
+            sec = sec.trim();
+            if (sec.indexOf('跨维度合成') >= 0) {
+                synthesisSection = sec.replace(/^##\s*🔮\s*跨维度合成\s*/, '');
+            }
+            dims.forEach(function(d) {
+                if (sec.indexOf(d.label) >= 0 && sec.indexOf('(' + d.key + ')') >= 0) {
+                    dimSections[d.key] = sec.replace(new RegExp('^##\\s*' + d.icon + '\\s*' + d.label + '.*\\n*'), '');
+                }
+            });
+        });
+
+        var html = '<div class="analysis-result" style="padding:0;">';
+
+        // 合成结论（始终展开）
+        if (synthesisSection) {
+            html += '<div style="padding:16px;background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid #d2a8ff33;border-radius:8px;margin-bottom:16px;">'
+                + '<h3 style="color:#d2a8ff;margin:0 0 12px;">🔮 跨维度合成</h3>'
+                + '<div style="color:#c9d1d9;line-height:1.8;">' + renderMarkdown(synthesisSection) + '</div></div>';
+        }
+
+        // 6 个维度手风琴
+        html += '<div style="display:flex;flex-direction:column;gap:4px;">';
+        dims.forEach(function(d, i) {
+            var content = dimSections[d.key] || '';
+            var id = 'dim-' + d.key;
+            html += '<div style="border:1px solid #30363d;border-radius:6px;overflow:hidden;">'
+                + '<div onclick="toggleDimension(\'' + id + '\')" style="padding:10px 14px;background:#161b22;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;">'
+                + '<span style="color:' + d.color + ';font-size:1.1em;">' + d.icon + '</span>'
+                + '<span style="color:' + d.color + ';font-weight:600;">' + d.label + '</span>'
+                + '<span id="' + id + '-arrow" style="margin-left:auto;color:#484f58;transition:transform 0.2s;">▶</span>'
+                + '</div>'
+                + '<div id="' + id + '" style="display:none;padding:14px;background:#0d1117;color:#c9d1d9;line-height:1.8;max-height:500px;overflow-y:auto;">'
+                + (content ? renderMarkdown(content) : '<p style="color:#484f58;">此维度未产出结果</p>')
+                + '</div></div>';
+        });
+        html += '</div></div>';
+        return html;
+    }
+
     function displayResults(idea) {
         if (idea.novelty_score != null) {
             const scoreClass = idea.novelty_score >= 70 ? 'score-high' : idea.novelty_score >= 40 ? 'score-mid' : 'score-low';
@@ -386,8 +490,14 @@
         }
 
         if (idea.analysis) {
-            document.getElementById('analysis-area').innerHTML = DOMPurify.sanitize(
-                '<div class="analysis-result">' + renderMarkdown(idea.analysis) + '</div>');
+            // 检测是否为多维推演报告（包含维度标记）
+            var isDeepReasoning = idea.analysis.indexOf('多维深度推演报告') >= 0;
+            if (isDeepReasoning) {
+                document.getElementById('analysis-area').innerHTML = DOMPurify.sanitize(renderDeepReasoningUI(idea.analysis));
+            } else {
+                document.getElementById('analysis-area').innerHTML = DOMPurify.sanitize(
+                    '<div class="analysis-result">' + renderMarkdown(idea.analysis) + '</div>');
+            }
         }
 
         let findingsHtml = '';

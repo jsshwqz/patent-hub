@@ -113,7 +113,7 @@ impl PipelineRunner {
             self.send_progress(&progress_tx, &step, StepStatus::Running);
 
             // 执行当前步骤
-            let result = self.execute_step(&mut ctx).await;
+            let result = self.execute_step(&mut ctx, &progress_tx).await;
             tracing::info!("Pipeline step {:?} result: {:?}", step, result.is_ok());
 
             let duration_ms = step_start.elapsed().as_millis() as u64;
@@ -185,7 +185,11 @@ impl PipelineRunner {
     }
 
     /// 执行单个步骤
-    async fn execute_step(&self, ctx: &mut PipelineContext) -> Result<()> {
+    async fn execute_step(
+        &self,
+        ctx: &mut PipelineContext,
+        progress_tx: &Option<tokio::sync::broadcast::Sender<PipelineProgress>>,
+    ) -> Result<()> {
         match ctx.current_step {
             PipelineStep::ParseInput => steps::parse::execute(ctx).await,
             PipelineStep::ExpandQuery => steps::expand::execute(ctx, &self.ai_client).await,
@@ -204,7 +208,7 @@ impl PipelineRunner {
             PipelineStep::DetectContradictions => steps::contradiction::execute(ctx).await,
             PipelineStep::ScoreNovelty => steps::scoring::execute(ctx).await,
             PipelineStep::AiDeepAnalysis => {
-                steps::analysis::deep_analysis(ctx, &self.ai_client).await
+                steps::analysis::deep_analysis(ctx, &self.ai_client, progress_tx).await
             }
             PipelineStep::AiActionPlan => {
                 let result = steps::analysis::action_plan(ctx, &self.ai_client).await;
@@ -234,6 +238,8 @@ impl PipelineRunner {
                 total_steps: PipelineStep::TOTAL_STEPS,
                 status,
                 message: step.description().to_string(),
+                sub_step: None,
+                sub_progress: None,
             });
         }
     }
