@@ -67,7 +67,11 @@ button:hover { background: #2ea043; }
 .content-box { line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-height: 600px; overflow-y: auto; }
 .content-box pre { white-space: pre-wrap; font-family: inherit; }
 
-.chat-container { max-width: 800px; margin: 0 auto; }
+.chat-container { max-width: 900px; margin: 0 auto; }
+@media (min-width: 1200px) {
+    .chat-container { max-width: 1100px; }
+    .chat-box { min-height: 500px; max-height: 70vh; }
+}
 .chat-box { background: #161b22; border: 1px solid #30363d; border-radius: 8px 8px 0 0; padding: 16px; min-height: 400px; max-height: 500px; overflow-y: auto; }
 .msg { padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; max-width: 80%; line-height: 1.6; }
 .msg.user { background: #1f6feb; margin-left: auto; }

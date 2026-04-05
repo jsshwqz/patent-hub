@@ -13,7 +13,20 @@
 <!-- Chart.js v4 (MIT License) - https://www.chartjs.org/ -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
-.search-container { display: grid; gap: 16px; }
+.search-container { display: grid; gap: 16px; max-width: 1600px; }
+@media (min-width: 1200px) {
+    .search-container {
+        grid-template-columns: 380px 1fr;
+        grid-template-rows: auto auto 1fr;
+        align-items: start;
+    }
+    .search-container .panel:last-child {
+        grid-column: 2;
+        grid-row: 1 / -1;
+    }
+    .search-grid { grid-template-columns: 1fr !important; }
+    .search-grid-2 { grid-template-columns: 1fr 1fr !important; }
+}
 .panel { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 16px; }
 .panel h3 { margin: 0 0 12px; color: #58a6ff; font-size: 16px; }
 .search-grid { display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 8px; }
