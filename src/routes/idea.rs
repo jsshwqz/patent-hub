@@ -214,11 +214,25 @@ pub async fn api_idea_delete(
     State(s): State<AppState>,
     Path(idea_id): Path<String>,
 ) -> Json<serde_json::Value> {
-    // 级联删除：特征卡片 → 消息 → 创意 / Cascade delete: feature cards → messages → idea
+    // 级联删除：证据链 → 特征卡片 → 消息 → 创意 / Cascade delete: evidence → feature cards → messages → idea
+    let _ = s.db.delete_evidence_by_idea(&idea_id);
     let _ = s.db.delete_feature_cards_by_idea(&idea_id);
     let _ = s.db.delete_idea_messages(&idea_id);
     match s.db.delete_idea(&idea_id) {
         Ok(_) => Json(json!({"status": "ok"})),
+        Err(e) => Json(json!({"status": "error", "message": e.to_string()})),
+    }
+}
+
+// ── Evidence chain API ───────────────────────────────────────────────
+
+/// GET /api/idea/:id/evidence — 获取创意的证据链 / Get evidence chain for an idea
+pub async fn api_idea_evidence(
+    State(s): State<AppState>,
+    Path(idea_id): Path<String>,
+) -> Json<serde_json::Value> {
+    match s.db.get_evidence_by_idea(&idea_id) {
+        Ok(evidences) => Json(json!({"status": "ok", "evidence": evidences, "count": evidences.len()})),
         Err(e) => Json(json!({"status": "error", "message": e.to_string()})),
     }
 }

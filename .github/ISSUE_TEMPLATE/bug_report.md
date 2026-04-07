@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 ## 运行环境 / Environment
 - 操作系统 / OS: [e.g. Windows 11, macOS 14, Ubuntu 22.04]
 - Rust 版本 / Rust version: [e.g. 1.75.0]
-- Patent Hub 版本 / Patent Hub version: [e.g. 0.4.2]
+- InnoForge 版本 / InnoForge version: [e.g. 0.5.0]
 - AI 服务 / AI Service: [e.g. OpenRouter, 智谱, DeepSeek]
 - 浏览器 / Browser: [e.g. Chrome 120, Edge 120]
 

@@ -221,7 +221,7 @@ impl PipelineRunner {
                 }
                 result
             }
-            PipelineStep::Finalize => steps::finalize::execute(ctx).await,
+            PipelineStep::Finalize => steps::finalize::execute(ctx, &self.db).await,
         }
     }
 

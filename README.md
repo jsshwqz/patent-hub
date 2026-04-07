@@ -21,7 +21,7 @@
 | Android | [📱 下载](https://github.com/jsshwqz/innoforge/releases/latest) | [📱 下载](https://gitee.com/jsshwqz/innoforge/releases) |
 | Docker | `docker run -p 3000:3000 jsshwqz/innoforge` | 同左 |
 
-> 下载解压后运行 `start.bat`（Windows）或 `./start.sh`，打开 **http://127.0.0.1:3000** 即可使用。无需安装数据库。
+> 下载解压后运行（Windows `start.bat` / Linux `./start.sh`），打开 http://127.0.0.1:3000 即可使用。无需安装数据库。
 
 ---
 
@@ -280,15 +280,17 @@ All settings configurable via **Settings page** (http://localhost:3000/settings)
 | OpenRouter | Free models available | `https://openrouter.ai/api/v1` |
 | Google Gemini | 15 RPM free | `https://generativelanguage.googleapis.com/v1beta/openai/` |
 | OpenAI | Paid | `https://api.openai.com/v1` |
+| NVIDIA | Free credits | `https://integrate.api.nvidia.com/v1` |
 | Ollama | Local/Free | `http://localhost:11434/v1` |
 
 ### Tech Stack
 
 - **Backend**: Rust + Axum + SQLite (embedded, zero-config)
 - **Frontend**: Vanilla HTML/CSS/JS (no build tools)
-- **AI**: Any OpenAI-compatible API + automatic failover
+- **AI**: Any OpenAI-compatible API + 6-provider automatic failover
 - **Search**: CNIPR + SerpAPI + Lens.org + Google Patents + Sogou (5-source cascade)
 - **Mobile**: Rust cdylib/staticlib + JNI (Android) / FFI (iOS)
+- **i18n**: Chinese/English bilingual
 
 ### License
 

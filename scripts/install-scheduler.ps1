@@ -1,7 +1,7 @@
-# 安装 Patent Hub 自审查计划任务 / Install self-review scheduled task
+# 安装 InnoForge 自审查计划任务 / Install self-review scheduled task
 # 以管理员权限运行 / Run as Administrator
 
-$TaskName    = "PatentHub-SelfReview"
+$TaskName    = "InnoForge-SelfReview"
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
 $ScriptPath  = Join-Path $ProjectRoot "scripts\self-review.ps1"
 $LogPath     = Join-Path $ProjectRoot "docs\self-review\scheduler.log"

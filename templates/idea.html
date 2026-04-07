@@ -119,6 +119,16 @@
             <div id="analysis-area"></div>
             <div id="findings-area"></div>
 
+            <!-- Evidence chain panel -->
+            <div id="evidence-panel" style="display:none; margin-top:16px; padding:16px; background:#161b22; border-radius:8px; border:1px solid #30363d;">
+                <details>
+                    <summary style="cursor:pointer; color:#58a6ff; font-weight:bold; font-size:1.05em;">
+                        🔗 证据链 / Evidence Chain (<span id="evidence-count">0</span> 条)
+                    </summary>
+                    <div id="evidence-list" style="margin-top:12px;"></div>
+                </details>
+            </div>
+
             <!-- Multi-round discussion panel -->
             <div id="discussion-panel" style="display:none; margin-top:24px; padding:20px; background:#161b22; border-radius:8px; border:1px solid #30363d;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -609,6 +619,86 @@
             findingsHtml += '</div>';
         }
         document.getElementById('findings-area').innerHTML = DOMPurify.sanitize(findingsHtml);
+
+        // 加载证据链 / Load evidence chain
+        loadEvidenceChain(idea.id);
+    }
+
+    async function loadEvidenceChain(ideaId) {
+        var panel = document.getElementById('evidence-panel');
+        var list = document.getElementById('evidence-list');
+        var countEl = document.getElementById('evidence-count');
+        try {
+            var resp = await fetch('/api/idea/' + ideaId + '/evidence');
+            var data = await resp.json();
+            if (data.status !== 'ok' || !data.evidence || data.evidence.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+            panel.style.display = 'block';
+            countEl.textContent = data.evidence.length;
+            list.innerHTML = '';
+            data.evidence.forEach(function(ev) {
+                var card = document.createElement('div');
+                card.style.cssText = 'margin-bottom:8px;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;';
+
+                // 置信度标签颜色
+                var confColor = ev.confidence >= 0.7 ? '#3fb950' : ev.confidence >= 0.3 ? '#d29922' : '#f85149';
+                var confPct = Math.round(ev.confidence * 100);
+
+                // 关系标签
+                var relLabel = ev.relation === 'supports' ? '支撑' : ev.relation === 'contradicts' ? '矛盾' : '部分相关';
+                var relColor = ev.relation === 'supports' ? '#3fb950' : ev.relation === 'contradicts' ? '#f85149' : '#d29922';
+
+                var header = document.createElement('div');
+                header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;';
+
+                var claimSpan = document.createElement('span');
+                claimSpan.style.cssText = 'color:#c9d1d9;font-size:0.9em;font-weight:bold;flex:1;';
+                claimSpan.textContent = ev.claim;
+
+                var badges = document.createElement('span');
+                badges.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+                badges.innerHTML = DOMPurify.sanitize(
+                    '<span style="background:' + confColor + '22;color:' + confColor + ';padding:1px 6px;border-radius:3px;font-size:0.75em;">' + confPct + '%</span>' +
+                    '<span style="background:' + relColor + '22;color:' + relColor + ';padding:1px 6px;border-radius:3px;font-size:0.75em;">' + relLabel + '</span>'
+                );
+
+                header.appendChild(claimSpan);
+                header.appendChild(badges);
+                card.appendChild(header);
+
+                // 摘录
+                if (ev.excerpt) {
+                    var excerptDiv = document.createElement('div');
+                    excerptDiv.style.cssText = 'color:#8b949e;font-size:0.82em;line-height:1.4;margin-bottom:4px;';
+                    excerptDiv.textContent = ev.excerpt.length > 200 ? ev.excerpt.substring(0, 200) + '...' : ev.excerpt;
+                    card.appendChild(excerptDiv);
+                }
+
+                // 来源
+                var meta = document.createElement('div');
+                meta.style.cssText = 'color:#6e7681;font-size:0.75em;';
+                if (ev.source_url) {
+                    var link = document.createElement('a');
+                    link.href = ev.source_url;
+                    link.target = '_blank';
+                    link.style.color = '#58a6ff';
+                    link.textContent = ev.source_title;
+                    meta.appendChild(link);
+                } else {
+                    meta.textContent = ev.source_title;
+                }
+                var stepSpan = document.createElement('span');
+                stepSpan.textContent = ' | ' + ev.produced_by;
+                meta.appendChild(stepSpan);
+                card.appendChild(meta);
+
+                list.appendChild(card);
+            });
+        } catch(e) {
+            panel.style.display = 'none';
+        }
     }
 
     function showStatus(type, msg) {

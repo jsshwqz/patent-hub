@@ -7,6 +7,7 @@ use axum::{
     Json,
 };
 use serde_json::json;
+use std::sync::{Arc, RwLock};
 
 pub async fn api_fetch_patent(
     State(s): State<AppState>,
@@ -809,4 +810,294 @@ pub async fn api_patent_image_proxy(
             format!("Proxy error: {}", e).into_bytes(),
         ),
     }
+}
+
+// ── 法律状态查询（三级降级链）/ Legal Status Query (3-level degradation chain) ──
+
+/// GET /api/patent/:id/legal-status — 查询专利法律状态
+pub async fn api_patent_legal_status(
+    State(s): State<AppState>,
+    Path(patent_number): Path<String>,
+) -> Json<serde_json::Value> {
+    let config = s.config.clone();
+    match fetch_legal_status(&patent_number, &config).await {
+        Ok(result) => {
+            // 更新本地 Patent 记录的 legal_status 字段
+            if !result.current_status.is_empty() {
+                let status_text = result
+                    .events
+                    .iter()
+                    .take(5)
+                    .map(|e| format!("{} ({})", e.title, e.date))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                let _ = s.db.update_patent_legal_status(&patent_number, &status_text);
+            }
+            Json(json!({"status": "ok", "result": result}))
+        }
+        Err(e) => Json(json!({"status": "error", "message": e.to_string()})),
+    }
+}
+
+/// 三级法律状态查询链 / 3-level legal status query chain
+async fn fetch_legal_status(
+    patent_number: &str,
+    config: &Arc<RwLock<super::AppConfig>>,
+) -> anyhow::Result<LegalStatusResult> {
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+    // 第 1 级：Google Patents（已有 SerpAPI）
+    if let Ok(result) = fetch_legal_from_google_patents(patent_number, config).await {
+        if !result.events.is_empty() {
+            return Ok(result);
+        }
+    }
+
+    // 第 2 级：Lens.org
+    if let Ok(result) = fetch_legal_from_lens(patent_number, config).await {
+        if !result.events.is_empty() {
+            return Ok(result);
+        }
+    }
+
+    // 第 3 级：搜狗搜索国知局公告
+    if let Ok(result) = fetch_legal_from_sogou(patent_number).await {
+        if !result.events.is_empty() {
+            return Ok(result);
+        }
+    }
+
+    // 全部失败，返回未知状态
+    Ok(LegalStatusResult {
+        patent_number: patent_number.to_string(),
+        current_status: "未知".to_string(),
+        events: vec![],
+        source: "none".to_string(),
+        updated_at: now,
+    })
+}
+
+/// 第 1 级：Google Patents Details（通过 SerpAPI）
+async fn fetch_legal_from_google_patents(
+    patent_number: &str,
+    config: &Arc<RwLock<super::AppConfig>>,
+) -> anyhow::Result<LegalStatusResult> {
+    let serpapi_key = config.read().unwrap().serpapi_key.clone();
+    if serpapi_key.is_empty() {
+        return Err(anyhow::anyhow!("SerpAPI key not configured"));
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()?;
+
+    let url = format!(
+        "https://serpapi.com/search.json?engine=google_patents_details&patent_id={}&api_key={}",
+        urlencoding::encode(patent_number),
+        serpapi_key
+    );
+
+    let resp = client.get(&url).send().await?;
+    if !resp.status().is_success() {
+        return Err(anyhow::anyhow!("SerpAPI returned {}", resp.status()));
+    }
+
+    let json: serde_json::Value = resp.json().await?;
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let mut events = Vec::new();
+
+    if let Some(legal_events) = json["legal_events"].as_array() {
+        for e in legal_events {
+            let title = e["title"].as_str().unwrap_or("").to_string();
+            let date = e["date"].as_str().unwrap_or("").to_string();
+            let desc = e["description"].as_str().unwrap_or("").to_string();
+            if !title.is_empty() {
+                events.push(LegalEvent {
+                    date,
+                    title,
+                    description: desc,
+                });
+            }
+        }
+    }
+
+    let current_status = infer_current_status(&events);
+
+    Ok(LegalStatusResult {
+        patent_number: patent_number.to_string(),
+        current_status,
+        events,
+        source: "google_patents".to_string(),
+        updated_at: now,
+    })
+}
+
+/// 第 2 级：Lens.org API
+async fn fetch_legal_from_lens(
+    patent_number: &str,
+    config: &Arc<RwLock<super::AppConfig>>,
+) -> anyhow::Result<LegalStatusResult> {
+    let lens_key = config.read().unwrap().lens_api_key.clone();
+    if lens_key.is_empty() {
+        return Err(anyhow::anyhow!("Lens.org key not configured"));
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()?;
+
+    let body = json!({
+        "query": { "terms": { "lens_id": [patent_number] } },
+        "include": ["legal_status", "publication_type", "biblio"],
+        "size": 1
+    });
+
+    let resp = client
+        .post("https://api.lens.org/patent/search")
+        .header("Authorization", format!("Bearer {}", lens_key))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await?;
+
+    if !resp.status().is_success() {
+        return Err(anyhow::anyhow!("Lens.org returned {}", resp.status()));
+    }
+
+    let json: serde_json::Value = resp.json().await?;
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let mut events = Vec::new();
+
+    if let Some(data) = json["data"].as_array().and_then(|a| a.first()) {
+        if let Some(status) = data["legal_status"]["patent_status"].as_str() {
+            events.push(LegalEvent {
+                date: now.clone(),
+                title: status.to_string(),
+                description: String::new(),
+            });
+        }
+    }
+
+    let current_status = if events.is_empty() {
+        "未知".to_string()
+    } else {
+        events[0].title.clone()
+    };
+
+    Ok(LegalStatusResult {
+        patent_number: patent_number.to_string(),
+        current_status,
+        events,
+        source: "lens".to_string(),
+        updated_at: now,
+    })
+}
+
+/// 第 3 级：搜狗搜索国知局公告页面
+async fn fetch_legal_from_sogou(patent_number: &str) -> anyhow::Result<LegalStatusResult> {
+    // 搜狗必须直连（不走代理），否则触发反爬虫
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .no_proxy()
+        .build()?;
+
+    let query = format!("{} 法律状态 专利", patent_number);
+    let url = format!(
+        "https://www.sogou.com/web?query={}&num=10",
+        urlencoding::encode(&query)
+    );
+
+    let resp = client
+        .get(&url)
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        )
+        .header("Accept-Language", "zh-CN,zh;q=0.9")
+        .header("Accept", "text/html,application/xhtml+xml")
+        .send()
+        .await?;
+
+    let html = resp.text().await?;
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let mut events = Vec::new();
+
+    // 从搜索结果摘要中提取法律状态关键词
+    let status_keywords = [
+        "授权", "有效", "无效", "驳回", "撤回", "实审", "公开",
+        "审查中", "失效", "届满", "缴费", "转让", "许可",
+        "Grant", "Active", "Expired", "Rejected", "Withdrawn",
+    ];
+
+    // 从整个页面中提取法律状态关键词（搜索词已限定专利号，结果都是相关的）
+    // Strip HTML tags for clean text matching
+    let clean_html = regex::Regex::new(r"<[^>]+>")
+        .unwrap()
+        .replace_all(&html, " ")
+        .to_string();
+
+    for kw in &status_keywords {
+        if clean_html.contains(kw) {
+            if let Some(pos) = clean_html.find(kw) {
+                // 用 char_indices 安全提取上下文，避免 UTF-8 边界 panic
+                let chars: Vec<(usize, char)> = clean_html.char_indices().collect();
+                let char_pos = chars.iter().position(|(i, _)| *i == pos).unwrap_or(0);
+                let ctx_start_idx = char_pos.saturating_sub(30);
+                let ctx_end_idx = (char_pos + 30).min(chars.len() - 1);
+                let byte_start = chars[ctx_start_idx].0;
+                let byte_end = if ctx_end_idx + 1 < chars.len() {
+                    chars[ctx_end_idx + 1].0
+                } else {
+                    clean_html.len()
+                };
+                let context = clean_html[byte_start..byte_end].trim().to_string();
+
+                events.push(LegalEvent {
+                    date: now.clone(),
+                    title: kw.to_string(),
+                    description: context,
+                });
+            }
+        }
+    }
+
+    // 去重
+    let mut seen = std::collections::HashSet::new();
+    events.retain(|e| seen.insert(e.title.clone()));
+
+    let current_status = infer_current_status(&events);
+
+    Ok(LegalStatusResult {
+        patent_number: patent_number.to_string(),
+        current_status,
+        events,
+        source: "sogou".to_string(),
+        updated_at: now,
+    })
+}
+
+/// 从法律事件推断当前状态 / Infer current status from legal events
+fn infer_current_status(events: &[LegalEvent]) -> String {
+    for e in events {
+        let t = e.title.as_str();
+        if t.contains("无效") || t.contains("Expired") || t.contains("失效") {
+            return "无效".to_string();
+        }
+        if t.contains("驳回") || t.contains("Rejected") {
+            return "驳回".to_string();
+        }
+        if t.contains("撤回") || t.contains("Withdrawn") {
+            return "撤回".to_string();
+        }
+        if t.contains("授权") || t.contains("Grant") || t.contains("Active") {
+            return "有效".to_string();
+        }
+        if t.contains("实审") || t.contains("审查") {
+            return "审查中".to_string();
+        }
+        if t.contains("公开") {
+            return "公开".to_string();
+        }
+    }
+    "未知".to_string()
 }

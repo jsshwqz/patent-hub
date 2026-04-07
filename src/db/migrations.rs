@@ -183,6 +183,34 @@ pub(crate) fn run(conn: &Connection, current_version: i32, target_version: i32) 
         tracing::info!("Database migrated to version 7 (pipeline_snapshots + search_cache)");
     }
 
+    // Migration 7 → 8: 证据链 / Evidence chain
+    if current_version < 8 {
+        conn.execute_batch("
+            CREATE TABLE IF NOT EXISTS evidence_chain (
+                id TEXT PRIMARY KEY,
+                idea_id TEXT NOT NULL,
+                claim TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_title TEXT NOT NULL,
+                source_url TEXT DEFAULT '',
+                claim_number TEXT,
+                excerpt TEXT NOT NULL,
+                relation TEXT NOT NULL DEFAULT 'supports',
+                confidence REAL NOT NULL DEFAULT 0.0,
+                produced_by TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (idea_id) REFERENCES ideas(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_ev_idea ON evidence_chain(idea_id);
+            CREATE INDEX IF NOT EXISTS idx_ev_confidence ON evidence_chain(confidence);
+
+            DELETE FROM schema_version;
+            INSERT INTO schema_version (version) VALUES (8);
+        ")?;
+        tracing::info!("Database migrated to version 8 (evidence_chain)");
+    }
+
     if current_version > 0 && current_version < target_version {
         tracing::info!(
             "Database migrated from version {} to {}",

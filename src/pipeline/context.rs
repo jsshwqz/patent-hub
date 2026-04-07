@@ -115,6 +115,32 @@ pub enum StepStatus {
     Error,
 }
 
+/// 证据条目 — 从结论到原始来源的可追溯链 / Evidence entry — traceable link from conclusion to source
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Evidence {
+    pub id: String,
+    pub idea_id: String,
+    /// 结论描述 / Claim description
+    pub claim: String,
+    /// "patent" | "web" | "contradiction" | "scoring"
+    pub source_type: String,
+    pub source_id: String,
+    pub source_title: String,
+    pub source_url: String,
+    /// 权利要求编号（预留）/ Patent claim number (reserved for future)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_number: Option<String>,
+    /// 原文摘录 / Original text excerpt
+    pub excerpt: String,
+    /// "supports" | "contradicts" | "partial"
+    pub relation: String,
+    /// 0.0-1.0，算法计算非 AI 生成 / Algorithmic confidence, not AI-generated
+    pub confidence: f64,
+    /// 生成该证据的 pipeline 步骤 / Pipeline step that produced this evidence
+    pub produced_by: String,
+    pub created_at: String,
+}
+
 /// 流水线上下文 — 在步骤间传递的数据载体
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineContext {
@@ -162,6 +188,10 @@ pub struct PipelineContext {
     #[serde(default)]
     pub deep_reasoning: DeepReasoningResult,
 
+    // 证据链 / Evidence chain
+    #[serde(default)]
+    pub evidence_chain: Vec<Evidence>,
+
     // 元数据
     pub current_step: PipelineStep,
     pub step_results: Vec<StepResult>,
@@ -190,6 +220,7 @@ impl PipelineContext {
             ai_analysis: String::new(),
             action_plan: String::new(),
             deep_reasoning: DeepReasoningResult::default(),
+            evidence_chain: Vec::new(),
             current_step: PipelineStep::ParseInput,
             step_results: Vec::new(),
         }

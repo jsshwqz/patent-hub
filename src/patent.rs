@@ -193,6 +193,29 @@ fn default_text() -> String {
     "text".to_string()
 }
 
+// ── Legal Status 法律状态 ────────────────────────────────────────────────────
+
+/// 专利法律状态查询结果 / Patent legal status result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LegalStatusResult {
+    pub patent_number: String,
+    /// "有效" | "无效" | "审查中" | "公开" | "驳回" | "撤回" | "未知"
+    pub current_status: String,
+    pub events: Vec<LegalEvent>,
+    /// "google_patents" | "lens" | "cnipa_gazette" | "sogou"
+    pub source: String,
+    pub updated_at: String,
+}
+
+/// 单条法律状态事件 / A single legal status event
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LegalEvent {
+    pub date: String,
+    /// "公开" | "实审" | "授权" | "缴费" | "驳回" | "无效" | "转让" 等
+    pub title: String,
+    pub description: String,
+}
+
 // ── Feature Cards ────────────────────────────────────────────────────────────
 
 /// A feature card linked to an idea, capturing a specific inventive feature.

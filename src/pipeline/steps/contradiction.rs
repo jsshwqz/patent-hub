@@ -5,7 +5,7 @@
 //! 矛盾 = 两个结果都与用户创意相关，但彼此之间差异很大
 //! 这意味着该领域技术路线尚未收敛，存在创新空间
 
-use crate::pipeline::context::{Contradiction, PipelineContext};
+use crate::pipeline::context::{Contradiction, Evidence, PipelineContext};
 use anyhow::Result;
 use std::collections::HashSet;
 
@@ -94,6 +94,26 @@ pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     contradictions.truncate(5);
+
+    // 为每个矛盾生成证据 / Generate evidence for each contradiction
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    for c in &contradictions {
+        ctx.evidence_chain.push(Evidence {
+            id: uuid::Uuid::new_v4().to_string(),
+            idea_id: ctx.idea_id.clone(),
+            claim: format!("技术路线矛盾：{} vs {} ({})", c.source_a, c.source_b, c.dimension),
+            source_type: "contradiction".to_string(),
+            source_id: format!("{}|{}", c.source_a, c.source_b),
+            source_title: format!("{} ↔ {}", c.source_a, c.source_b),
+            source_url: String::new(),
+            claim_number: None,
+            excerpt: c.opportunity.clone(),
+            relation: "contradicts".to_string(),
+            confidence: c.signal_strength,
+            produced_by: "DetectContradictions".to_string(),
+            created_at: now.clone(),
+        });
+    }
 
     ctx.contradictions = contradictions;
     Ok(())

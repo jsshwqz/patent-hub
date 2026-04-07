@@ -156,6 +156,10 @@ pub async fn start_server(db_path: &str) -> anyhow::Result<()> {
             "/api/patent/similar/:id",
             get(routes::api_recommend_similar),
         )
+        .route(
+            "/api/patent/:id/legal-status",
+            get(routes::api_patent_legal_status),
+        )
         .route("/api/ai/chat", post(routes::api_ai_chat))
         .route("/api/ai/chat/stream", post(routes::api_ai_chat_stream))
         .route("/api/ai/summarize", post(routes::api_ai_summarize))
@@ -181,6 +185,7 @@ pub async fn start_server(db_path: &str) -> anyhow::Result<()> {
         .route("/api/idea/:id/resume", post(routes::api_idea_resume))
         .route("/api/idea/:id/report", get(routes::api_idea_report))
         .route("/api/idea/:id/report.html", get(routes::api_idea_report_html))
+        .route("/api/idea/:id/evidence", get(routes::api_idea_evidence))
         .route("/api/idea/:id/chat", post(routes::api_idea_chat))
         .route("/api/idea/:id/messages", get(routes::api_idea_messages))
         .route(

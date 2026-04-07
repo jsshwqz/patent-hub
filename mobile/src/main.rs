@@ -59,7 +59,7 @@ fn Search() -> Element {
     rsx! {
         div { class: "app",
             nav { class: "navbar",
-                span { class: "logo", "Patent Hub" }
+                span { class: "logo", "创研台" }
                 Link { to: Route::Settings {}, class: "nav-link", "⚙️" }
             }
             div { class: "container",
@@ -112,7 +112,7 @@ fn Settings() -> Element {
             }
             div { class: "container",
                 h2 { class: "section-title", "服务器配置" }
-                p { class: "hint", "输入 PC 上运行的 Patent Hub 地址" }
+                p { class: "hint", "输入 PC 上运行的创研台地址" }
                 input {
                     class: "search-input",
                     placeholder: "http://192.168.1.100:3000",
@@ -134,7 +134,7 @@ fn Settings() -> Element {
                     div { class: "success-msg", "✅ 已保存" }
                 }
                 h2 { class: "section-title", "关于" }
-                p { class: "hint", "Patent Hub v0.3.1 · Dioxus Native" }
+                p { class: "hint", "创研台 InnoForge v0.5.0 · Dioxus Native" }
                 p { class: "hint", "智能专利检索与分析平台" }
             }
         }

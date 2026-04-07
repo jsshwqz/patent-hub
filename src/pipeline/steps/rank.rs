@@ -2,7 +2,7 @@
 //!
 //! 类型：CODE
 
-use crate::pipeline::context::{PipelineContext, RankedMatch};
+use crate::pipeline::context::{Evidence, PipelineContext, RankedMatch};
 use crate::pipeline::steps::parse::tokenize;
 use anyhow::Result;
 use std::collections::HashSet;
@@ -56,6 +56,35 @@ pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
 
         if ranked.len() >= MAX_TOP_MATCHES {
             break;
+        }
+    }
+
+    // 为高相似度匹配生成证据 / Generate evidence for high-similarity matches
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    for m in &ranked {
+        if m.combined_score > 0.1 {
+            let relation = if m.combined_score > 0.7 {
+                "supports" // 高度相似，支撑"已有类似技术"结论
+            } else if m.combined_score > 0.3 {
+                "partial"
+            } else {
+                "supports"
+            };
+            ctx.evidence_chain.push(Evidence {
+                id: uuid::Uuid::new_v4().to_string(),
+                idea_id: ctx.idea_id.clone(),
+                claim: format!("与现有技术「{}」相似度 {:.0}%", m.source_title, m.combined_score * 100.0),
+                source_type: m.source_type.clone(),
+                source_id: m.source_id.clone(),
+                source_title: m.source_title.clone(),
+                source_url: m.source_url.clone(),
+                claim_number: None,
+                excerpt: m.snippet.chars().take(500).collect(),
+                relation: relation.to_string(),
+                confidence: m.combined_score,
+                produced_by: "RankAndFilter".to_string(),
+                created_at: now.clone(),
+            });
         }
     }
 

@@ -1,17 +1,17 @@
 [application]
-name = "Patent Hub"
+name = "InnoForge"
 default_platform = "mobile"
 out_dir = "dist"
 
 [application.android]
-package = "com.patenthub.app"
+package = "com.innoforge.app"
 min_sdk_version = 24
 target_sdk_version = 34
 permissions = ["android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE"]
 
 [web.app]
-title = "Patent Hub"
+title = "创研台 InnoForge"
 
 [bundle]
-identifier = "com.patenthub.app"
+identifier = "com.innoforge.app"
 icon = ["assets/icon.png"]

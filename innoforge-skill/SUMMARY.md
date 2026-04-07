@@ -1,4 +1,4 @@
-# Patent-Hub SKILL.md 自进化实验报告
+# InnoForge SKILL.md 自进化实验报告
 
 ## 实验概述
 

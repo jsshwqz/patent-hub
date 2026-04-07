@@ -1,5 +1,5 @@
 {
-  "skill_name": "patent-hub-dev",
+  "skill_name": "innoforge-dev",
   "iteration": 1,
   "timestamp": "2026-04-01T12:00:00Z",
   "evals_tested": ["eval-1-fix-xss", "eval-2-pipeline-step", "eval-3-db-migration"],

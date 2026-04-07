@@ -562,4 +562,14 @@ impl super::Database {
             pdf_url: r.get(24).unwrap_or_default(),
         }
     }
+
+    /// 更新专利的法律状态 / Update patent legal status
+    pub fn update_patent_legal_status(&self, patent_number: &str, legal_status: &str) -> Result<()> {
+        let c = self.conn();
+        c.execute(
+            "UPDATE patents SET legal_status = ?1 WHERE patent_number = ?2",
+            params![legal_status, patent_number],
+        )?;
+        Ok(())
+    }
 }

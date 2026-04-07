@@ -2,17 +2,30 @@
 //!
 //! 类型：CODE
 
+use crate::db::Database;
 use crate::pipeline::context::PipelineContext;
 use anyhow::Result;
+use std::sync::Arc;
 
-/// 执行 Step 13
-pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
+/// 执行 Step 13（持久化证据链到数据库）
+pub async fn execute(ctx: &mut PipelineContext, db: &Arc<Database>) -> Result<()> {
     // 确保评分在合理范围内
     ctx.novelty_score = ctx.novelty_score.clamp(0.0, 100.0);
 
     // 如果 AI 分析为空（AI 不可用），生成基于代码计算的纯数据报告
     if ctx.ai_analysis.is_empty() {
         ctx.ai_analysis = generate_code_only_report(ctx);
+    }
+
+    // 持久化证据链到数据库 / Persist evidence chain to database
+    if !ctx.evidence_chain.is_empty() {
+        // 先清除旧证据（重新运行 pipeline 时）
+        let _ = db.delete_evidence_by_idea(&ctx.idea_id);
+        if let Err(e) = db.insert_evidence_batch(&ctx.evidence_chain) {
+            tracing::warn!("证据链持久化失败: {}", e);
+        } else {
+            tracing::info!("证据链已保存: {} 条证据", ctx.evidence_chain.len());
+        }
     }
 
     Ok(())

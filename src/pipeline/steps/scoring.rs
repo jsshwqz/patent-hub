@@ -6,7 +6,7 @@
 //! novelty = 100 - max_sim_penalty - avg_penalty + contradiction_bonus + gap_bonus
 //! 其中代码计算，不是 AI 猜测
 
-use crate::pipeline::context::{PipelineContext, ScoreBreakdown};
+use crate::pipeline::context::{Evidence, PipelineContext, ScoreBreakdown};
 use anyhow::Result;
 
 /// 执行 Step 10
@@ -54,6 +54,28 @@ pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
         final_score,
     };
     ctx.novelty_score = final_score;
+
+    // 生成评分汇总证据 / Generate scoring summary evidence
+    let level = if final_score >= 70.0 { "高新颖性" } else if final_score >= 40.0 { "中等新颖性" } else { "低新颖性" };
+    let relation = if final_score >= 60.0 { "supports" } else { "contradicts" };
+    ctx.evidence_chain.push(Evidence {
+        id: uuid::Uuid::new_v4().to_string(),
+        idea_id: ctx.idea_id.clone(),
+        claim: format!("新颖性评分 {:.1}/100（{}）", final_score, level),
+        source_type: "scoring".to_string(),
+        source_id: "novelty_score".to_string(),
+        source_title: "算法评分".to_string(),
+        source_url: String::new(),
+        claim_number: None,
+        excerpt: format!(
+            "最高相似度:{:.2}, Top5均值:{:.2}, 矛盾加分:{:.1}, 覆盖缺口:{:.1}, 最终:{:.1}",
+            max_similarity, avg_top5, contradiction_bonus, coverage_gap_bonus, final_score
+        ),
+        relation: relation.to_string(),
+        confidence: 1.0, // 确定性算法计算
+        produced_by: "ScoreNovelty".to_string(),
+        created_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+    });
 
     Ok(())
 }
