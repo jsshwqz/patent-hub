@@ -1030,10 +1030,17 @@ async fn fetch_legal_from_sogou(patent_number: &str) -> anyhow::Result<LegalStat
     ];
 
     // 从整个页面中提取法律状态关键词（搜索词已限定专利号，结果都是相关的）
+    // 先移除 script/style 标签及其内容，避免 JS/CSS 噪声
+    let no_script = regex::Regex::new(r"(?is)<script[^>]*>.*?</script>")
+        .unwrap()
+        .replace_all(&html, " ");
+    let no_style = regex::Regex::new(r"(?is)<style[^>]*>.*?</style>")
+        .unwrap()
+        .replace_all(&no_script, " ");
     // Strip HTML tags for clean text matching
     let clean_html = regex::Regex::new(r"<[^>]+>")
         .unwrap()
-        .replace_all(&html, " ")
+        .replace_all(&no_style, " ")
         .to_string();
 
     for kw in &status_keywords {
@@ -1051,6 +1058,13 @@ async fn fetch_legal_from_sogou(patent_number: &str) -> anyhow::Result<LegalStat
                     clean_html.len()
                 };
                 let context = clean_html[byte_start..byte_end].trim().to_string();
+
+                // 过滤非有效中文描述：非中文字符占比 > 70% 则跳过
+                let chinese_count = context.chars().filter(|c| *c >= '\u{4e00}' && *c <= '\u{9fff}').count();
+                let total_non_space = context.chars().filter(|c| !c.is_whitespace()).count();
+                if total_non_space > 0 && (chinese_count as f64 / total_non_space as f64) < 0.3 {
+                    continue;
+                }
 
                 events.push(LegalEvent {
                     date: now.clone(),
