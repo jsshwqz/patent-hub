@@ -23,6 +23,13 @@ pub async fn deep_analysis(
     ctx.ai_analysis = super::deep_reasoning::format_report(&result);
     ctx.deep_reasoning = result;
 
+    // 更新研发状态机：低新颖性时记录排除路径
+    if ctx.novelty_score < 30.0 {
+        ctx.research_state.excluded_paths.push(
+            "该方向与现有技术高度重叠，建议调整技术路线".to_string()
+        );
+    }
+
     Ok(())
 }
 
@@ -165,7 +172,7 @@ pub async fn extract_feature_cards(ctx: &PipelineContext, db: &Database) -> Resu
     let idea_id = &ctx.idea_id;
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
-    // 从 top_matches 提取：每个高相似度匹配 → 一张特征卡
+    // 从 top_matches 提取：每个高相似度匹配 → 一张特征卡（含 5 维字段）
     // 反转 combined_score 为 novelty_score：相似度越高 → 新颖性越低
     for (i, m) in ctx.top_matches.iter().take(5).enumerate() {
         let novelty = ((1.0 - m.combined_score) * 100.0).clamp(0.0, 100.0);
@@ -182,11 +189,11 @@ pub async fn extract_feature_cards(ctx: &PipelineContext, db: &Database) -> Resu
             description,
             novelty_score: Some(novelty),
             created_at: now.clone(),
-            technical_problem: String::new(),
-            core_structure: String::new(),
-            key_relations: String::new(),
+            technical_problem: format!("与「{}」相关的技术问题", ctx.title),
+            core_structure: m.snippet.chars().take(200).collect::<String>(),
+            key_relations: m.tokens.join(", "),
             process_steps: String::new(),
-            application_scenarios: String::new(),
+            application_scenarios: ctx.technical_domain.clone(),
         };
 
         if let Err(e) = db.insert_feature_card(&card) {
@@ -194,7 +201,7 @@ pub async fn extract_feature_cards(ctx: &PipelineContext, db: &Database) -> Resu
         }
     }
 
-    // 从矛盾信号提取：每个矛盾 → 一张「创新机会」特征卡
+    // 从矛盾信号提取：每个矛盾 → 一张「创新机会」特征卡（含 5 维字段）
     for (i, c) in ctx.contradictions.iter().enumerate() {
         let card = FeatureCard {
             id: format!("{}-fc-opp-{}", idea_id, i + 1),
@@ -203,11 +210,11 @@ pub async fn extract_feature_cards(ctx: &PipelineContext, db: &Database) -> Resu
             description: c.opportunity.clone(),
             novelty_score: Some(c.signal_strength * 100.0),
             created_at: now.clone(),
-            technical_problem: String::new(),
-            core_structure: String::new(),
-            key_relations: String::new(),
+            technical_problem: format!("{}与{}在{}维度的矛盾", c.source_a, c.source_b, c.dimension),
+            core_structure: c.opportunity.clone(),
+            key_relations: format!("{} ↔ {}", c.source_a, c.source_b),
             process_steps: String::new(),
-            application_scenarios: String::new(),
+            application_scenarios: ctx.technical_domain.clone(),
         };
 
         if let Err(e) = db.insert_feature_card(&card) {
@@ -217,5 +224,68 @@ pub async fn extract_feature_cards(ctx: &PipelineContext, db: &Database) -> Resu
 
     let total = ctx.top_matches.len().min(5) + ctx.contradictions.len();
     tracing::info!("已自动提取 {} 张特征卡片 (idea: {})", total, idea_id);
+    Ok(())
+}
+
+/// AI 驱动的 5 维特征提取 — 在 deep_analysis 完成后调用
+/// 向 AI 发送结构化 prompt，解析返回的 JSON 数组，创建带 5 维字段的 FeatureCard
+pub async fn extract_feature_cards_ai(
+    ctx: &PipelineContext,
+    ai: &AiClient,
+    db: &Database,
+) -> Result<()> {
+    let prompt = format!(
+        "从以下创意描述和分析结果中提取技术特征卡片。\n\
+         请输出 JSON 数组，每个元素包含以下字段：\n\
+         - title: 特征标题\n\
+         - technical_problem: 解决什么技术问题\n\
+         - core_structure: 核心技术结构/方案\n\
+         - key_relations: 关键技术关系/连接\n\
+         - process_steps: 工艺/实施步骤\n\
+         - application_scenarios: 应用场景/领域\n\n\
+         创意标题：{}\n创意描述：{}\n\n分析结果：{}\n\n\
+         请直接输出 JSON 数组，不要包含 markdown 标记。",
+        ctx.title, ctx.description,
+        ctx.ai_analysis.chars().take(2000).collect::<String>()
+    );
+
+    match ai.chat(&prompt, None).await {
+        Ok(response) => {
+            let cleaned = response
+                .trim()
+                .trim_start_matches("```json")
+                .trim_start_matches("```")
+                .trim_end_matches("```")
+                .trim();
+            if let Ok(cards) = serde_json::from_str::<Vec<serde_json::Value>>(cleaned) {
+                let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
+                for card_json in cards.iter().take(5) {
+                    let card = FeatureCard {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        idea_id: ctx.idea_id.clone(),
+                        title: card_json["title"].as_str().unwrap_or("AI提取特征").to_string(),
+                        description: String::new(),
+                        novelty_score: None,
+                        created_at: now.clone(),
+                        technical_problem: card_json["technical_problem"].as_str().unwrap_or("").to_string(),
+                        core_structure: card_json["core_structure"].as_str().unwrap_or("").to_string(),
+                        key_relations: card_json["key_relations"].as_str().unwrap_or("").to_string(),
+                        process_steps: card_json["process_steps"].as_str().unwrap_or("").to_string(),
+                        application_scenarios: card_json["application_scenarios"].as_str().unwrap_or("").to_string(),
+                    };
+                    if let Err(e) = db.insert_feature_card(&card) {
+                        tracing::warn!("AI 特征卡片存储失败: {}", e);
+                    }
+                }
+                tracing::info!("AI 自动提取 {} 张 5 维特征卡片 (idea: {})", cards.len().min(5), ctx.idea_id);
+            } else {
+                tracing::warn!("AI 特征提取返回非法 JSON，跳过");
+            }
+        }
+        Err(e) => {
+            tracing::warn!("AI 特征卡片提取失败: {}", e);
+        }
+    }
+
     Ok(())
 }

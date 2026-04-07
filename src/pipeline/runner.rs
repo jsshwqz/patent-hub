@@ -218,6 +218,10 @@ impl PipelineRunner {
                     if let Err(e) = steps::analysis::extract_feature_cards(ctx, &self.db).await {
                         tracing::warn!("特征卡片提取失败（不影响管道）: {}", e);
                     }
+                    // AI 驱动的 5 维特征提取
+                    if let Err(e) = steps::analysis::extract_feature_cards_ai(ctx, &self.ai_client, &self.db).await {
+                        tracing::warn!("AI 特征卡片提取失败（不影响管道）: {}", e);
+                    }
                 }
                 result
             }
