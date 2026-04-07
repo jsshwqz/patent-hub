@@ -1,6 +1,6 @@
 [package]
 name = "innoforge"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 license = "MIT"
 description = "InnoForge - Turn ideas into decisions, plans, products, and IP protection with AI-powered patent search and feasibility analysis"
