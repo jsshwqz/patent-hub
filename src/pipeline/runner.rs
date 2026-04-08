@@ -7,6 +7,7 @@ use super::state::PipelineStep;
 use super::steps;
 use crate::ai::AiClient;
 use crate::db::Database;
+use crate::orchestrator;
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Instant;
@@ -141,6 +142,8 @@ impl PipelineRunner {
                             &format!("{:?}", step),
                         );
                     }
+                    // 同时写入版本历史 / Also record version history
+                    orchestrator::save_version_snapshot(&self.db, &ctx, step);
                 }
                 Err(e) => {
                     if step.is_critical() {
@@ -151,8 +154,9 @@ impl PipelineRunner {
                             e
                         ));
                     }
-                    // 非关键步骤失败，跳过继续
+                    // 非关键步骤失败，跳过继续，记录到 findings
                     tracing::warn!("非关键步骤 {:?} 失败: {}，跳过继续", step, e);
+                    orchestrator::record_failure(&self.db, &ctx, step, &e.to_string());
                     self.send_progress(&progress_tx, &step, StepStatus::Skipped);
                 }
             }
@@ -224,6 +228,9 @@ impl PipelineRunner {
                     }
                 }
                 result
+            }
+            PipelineStep::ExperimentValidation => {
+                steps::experiment::execute(ctx, &self.ai_client, &self.db).await
             }
             PipelineStep::Finalize => steps::finalize::execute(ctx, &self.db).await,
         }

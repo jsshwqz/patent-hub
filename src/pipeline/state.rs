@@ -16,6 +16,7 @@ pub enum PipelineStep {
     ScoreNovelty,
     AiDeepAnalysis,
     AiActionPlan,
+    ExperimentValidation,
     Finalize,
 }
 
@@ -27,7 +28,7 @@ pub enum StepType {
 }
 
 impl PipelineStep {
-    pub const TOTAL_STEPS: usize = 13;
+    pub const TOTAL_STEPS: usize = 14;
 
     pub fn step_type(&self) -> StepType {
         match self {
@@ -49,7 +50,8 @@ impl PipelineStep {
             Self::DetectContradictions => Some(Self::ScoreNovelty),
             Self::ScoreNovelty => Some(Self::AiDeepAnalysis),
             Self::AiDeepAnalysis => Some(Self::AiActionPlan),
-            Self::AiActionPlan => Some(Self::Finalize),
+            Self::AiActionPlan => Some(Self::ExperimentValidation),
+            Self::ExperimentValidation => Some(Self::Finalize),
             Self::Finalize => None,
         }
     }
@@ -68,7 +70,8 @@ impl PipelineStep {
             Self::ScoreNovelty => 9,
             Self::AiDeepAnalysis => 10,
             Self::AiActionPlan => 11,
-            Self::Finalize => 12,
+            Self::ExperimentValidation => 12,
+            Self::Finalize => 13,
         }
     }
 
@@ -86,6 +89,7 @@ impl PipelineStep {
             Self::ScoreNovelty => "新颖性评分",
             Self::AiDeepAnalysis => "AI 深度分析",
             Self::AiActionPlan => "AI 行动方案",
+            Self::ExperimentValidation => "实验验证",
             Self::Finalize => "生成报告",
         }
     }
@@ -109,6 +113,7 @@ impl PipelineStep {
                 | Self::DetectContradictions
                 | Self::AiDeepAnalysis
                 | Self::AiActionPlan
+                | Self::ExperimentValidation
         )
     }
 }

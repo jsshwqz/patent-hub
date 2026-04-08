@@ -1,5 +1,6 @@
 pub mod analysis;
 pub mod contradiction;
+pub mod experiment;
 pub mod deep_reasoning;
 pub mod diversity;
 pub mod expand;

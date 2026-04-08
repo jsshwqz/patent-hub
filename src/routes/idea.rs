@@ -1042,3 +1042,124 @@ fn jaccard_trigram(
     let union = a.union(b).count() as f64;
     if union == 0.0 { 0.0 } else { inter / union }
 }
+
+// ── 版本管理 + 迭代 API / Version management + iterate API ────────────
+
+/// POST /api/idea/:id/iterate — 持续迭代：基于上一轮结果重跑 Pipeline
+pub async fn api_idea_iterate(
+    State(s): State<AppState>,
+    Path(idea_id): Path<String>,
+) -> Json<serde_json::Value> {
+    // 获取最新版本快照
+    let latest = match s.db.get_latest_version(&idea_id, "main") {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            return Json(serde_json::json!({"status": "error", "message": "无历史版本，请先运行 Pipeline"}));
+        }
+        Err(e) => {
+            return Json(serde_json::json!({"status": "error", "message": e.to_string()}));
+        }
+    };
+
+    // 反序列化上一轮 context
+    let mut ctx: crate::pipeline::context::PipelineContext = match serde_json::from_str(&latest.context_json) {
+        Ok(c) => c,
+        Err(e) => {
+            return Json(serde_json::json!({"status": "error", "message": format!("快照反序列化失败: {}", e)}));
+        }
+    };
+
+    // 递增迭代计数
+    ctx.iteration_count += 1;
+    ctx.parent_version_id = latest.id.clone();
+
+    // 从 SearchWeb 重新开始（保留 keywords 和 expanded_queries，补充新搜索）
+    ctx.current_step = crate::pipeline::state::PipelineStep::SearchWeb;
+
+    // 使用 open_questions 作为额外搜索种子
+    if !ctx.research_state.open_questions.is_empty() {
+        let extra_queries: Vec<String> = ctx.research_state.open_questions
+            .iter()
+            .take(3)
+            .map(|q| q.chars().take(50).collect())
+            .collect();
+        ctx.expanded_queries.extend(extra_queries);
+    }
+
+    // 启动后台 Pipeline（从 SearchWeb 开始）
+    let config = s.config.read().unwrap().clone();
+    let runner = PipelineRunner::new(
+        config.ai_client(),
+        s.db.clone(),
+        config.serpapi_key.clone(),
+        config.bing_api_key.clone(),
+        config.lens_api_key.clone(),
+        false,
+    );
+
+    let db = s.db.clone();
+    let idea_id_clone = idea_id.clone();
+    tokio::spawn(async move {
+        match runner.resume(&idea_id_clone, None).await {
+            Ok(_) => tracing::info!("Iterate pipeline completed for {}", idea_id_clone),
+            Err(e) => {
+                tracing::error!("Iterate pipeline failed: {}", e);
+                if let Ok(Some(mut idea)) = db.get_idea(&idea_id_clone) {
+                    idea.analysis = format!("迭代失败: {}", e);
+                    let _ = db.update_idea(&idea);
+                }
+            }
+        }
+    });
+
+    Json(serde_json::json!({
+        "status": "ok",
+        "message": format!("第 {} 轮迭代已启动", ctx.iteration_count),
+        "iteration": ctx.iteration_count,
+    }))
+}
+
+/// GET /api/idea/:id/versions — 列出版本历史
+pub async fn api_idea_versions(
+    State(s): State<AppState>,
+    Path(idea_id): Path<String>,
+) -> Json<serde_json::Value> {
+    match s.db.get_idea_versions(&idea_id) {
+        Ok(versions) => {
+            let summaries: Vec<serde_json::Value> = versions
+                .iter()
+                .map(|v| serde_json::json!({
+                    "id": v.id,
+                    "version_number": v.version_number,
+                    "current_step": v.current_step,
+                    "branch_id": v.branch_id,
+                    "created_at": v.created_at,
+                }))
+                .collect();
+            Json(serde_json::json!({"status": "ok", "versions": summaries}))
+        }
+        Err(e) => Json(serde_json::json!({"status": "error", "message": e.to_string()})),
+    }
+}
+
+/// GET /api/idea/:id/branches — 列出分支
+pub async fn api_idea_branches(
+    State(s): State<AppState>,
+    Path(idea_id): Path<String>,
+) -> Json<serde_json::Value> {
+    match s.db.get_idea_branches(&idea_id) {
+        Ok(branches) => Json(serde_json::json!({"status": "ok", "branches": branches})),
+        Err(e) => Json(serde_json::json!({"status": "error", "message": e.to_string()})),
+    }
+}
+
+/// GET /api/idea/:id/findings — 列出发现记录
+pub async fn api_idea_findings(
+    State(s): State<AppState>,
+    Path(idea_id): Path<String>,
+) -> Json<serde_json::Value> {
+    match s.db.get_findings_by_idea(&idea_id) {
+        Ok(findings) => Json(serde_json::json!({"status": "ok", "findings": findings})),
+        Err(e) => Json(serde_json::json!({"status": "error", "message": e.to_string()})),
+    }
+}

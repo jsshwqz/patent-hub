@@ -1,6 +1,23 @@
 use super::state::PipelineStep;
 use serde::{Deserialize, Serialize};
 
+fn default_branch() -> String {
+    "main".to_string()
+}
+
+/// 实验执行结果
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ExperimentResult {
+    pub script_path: String,
+    pub language: String,
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+    pub metrics: serde_json::Value,
+    pub duration_ms: u64,
+    pub success: bool,
+}
+
 /// 相似度条目
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimilarityEntry {
@@ -205,6 +222,18 @@ pub struct PipelineContext {
     #[serde(default)]
     pub research_state: ResearchState,
 
+    // 版本管理 / Version control
+    #[serde(default = "default_branch")]
+    pub branch_id: String,
+    #[serde(default)]
+    pub iteration_count: u32,
+    #[serde(default)]
+    pub parent_version_id: String,
+
+    // 实验结果 / Experiment results
+    #[serde(default)]
+    pub experiment_results: Vec<ExperimentResult>,
+
     // 元数据
     pub current_step: PipelineStep,
     pub step_results: Vec<StepResult>,
@@ -235,6 +264,10 @@ impl PipelineContext {
             deep_reasoning: DeepReasoningResult::default(),
             evidence_chain: Vec::new(),
             research_state: ResearchState::default(),
+            branch_id: "main".to_string(),
+            iteration_count: 0,
+            parent_version_id: String::new(),
+            experiment_results: Vec::new(),
             current_step: PipelineStep::ParseInput,
             step_results: Vec::new(),
         }

@@ -226,6 +226,86 @@ pub(crate) fn run(conn: &Connection, current_version: i32, target_version: i32) 
         tracing::info!("Database migrated to version 9 (feature_card 5-dimension fields)");
     }
 
+    // Migration 9 → 10: 版本管理 + 发现记忆 / Version management + Findings memory
+    if current_version < 10 {
+        conn.execute_batch("
+            CREATE TABLE IF NOT EXISTS idea_versions (
+                id TEXT PRIMARY KEY,
+                idea_id TEXT NOT NULL,
+                version_number INTEGER NOT NULL,
+                context_json TEXT NOT NULL,
+                current_step TEXT NOT NULL,
+                branch_id TEXT DEFAULT 'main',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (idea_id) REFERENCES ideas(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_iv_idea ON idea_versions(idea_id);
+            CREATE INDEX IF NOT EXISTS idx_iv_branch ON idea_versions(branch_id);
+
+            CREATE TABLE IF NOT EXISTS idea_branches (
+                id TEXT PRIMARY KEY,
+                idea_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                parent_branch_id TEXT DEFAULT 'main',
+                parent_version_id TEXT,
+                status TEXT DEFAULT 'active',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (idea_id) REFERENCES ideas(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_ib_idea ON idea_branches(idea_id);
+
+            CREATE TABLE IF NOT EXISTS findings (
+                id TEXT PRIMARY KEY,
+                idea_id TEXT NOT NULL,
+                finding_type TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                source_step TEXT DEFAULT '',
+                branch_id TEXT DEFAULT 'main',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (idea_id) REFERENCES ideas(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_f_idea ON findings(idea_id);
+            CREATE INDEX IF NOT EXISTS idx_f_type ON findings(finding_type);
+
+            DELETE FROM schema_version;
+            INSERT INTO schema_version (version) VALUES (10);
+        ")?;
+        tracing::info!("Database migrated to version 10 (idea_versions + idea_branches + findings)");
+    }
+
+    // Migration 10 → 11: 权利要求树 / Claim tree
+    if current_version < 11 {
+        conn.execute_batch("
+            CREATE TABLE IF NOT EXISTS claim_nodes (
+                id TEXT PRIMARY KEY,
+                idea_id TEXT NOT NULL,
+                claim_number INTEGER NOT NULL,
+                claim_type TEXT NOT NULL DEFAULT 'independent',
+                parent_claim_id TEXT,
+                content TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (idea_id) REFERENCES ideas(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_cn_idea ON claim_nodes(idea_id);
+
+            CREATE TABLE IF NOT EXISTS technical_features (
+                id TEXT PRIMARY KEY,
+                claim_id TEXT NOT NULL,
+                description TEXT NOT NULL,
+                novelty_flag INTEGER NOT NULL DEFAULT 0,
+                evidence_ids TEXT DEFAULT '[]',
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (claim_id) REFERENCES claim_nodes(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_tf_claim ON technical_features(claim_id);
+
+            DELETE FROM schema_version;
+            INSERT INTO schema_version (version) VALUES (11);
+        ")?;
+        tracing::info!("Database migrated to version 11 (claim_nodes + technical_features)");
+    }
+
     if current_version > 0 && current_version < target_version {
         tracing::info!(
             "Database migrated from version {} to {}",

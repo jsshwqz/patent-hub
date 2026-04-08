@@ -9,6 +9,7 @@ mod idea;
 mod collection;
 mod evidence;
 mod settings;
+pub mod version;
 pub(crate) mod relevance;
 #[cfg(test)]
 mod tests;
@@ -32,7 +33,7 @@ impl Database {
     }
 
     /// Current schema version. Increment when adding migrations.
-    pub(crate) const SCHEMA_VERSION: i32 = 9;
+    pub(crate) const SCHEMA_VERSION: i32 = 11;
 
     pub fn init(path: &str) -> Result<Self> {
         let conn = Connection::open(path)?;

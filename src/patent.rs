@@ -260,6 +260,41 @@ pub struct CreateFeatureCardRequest {
     pub application_scenarios: String,
 }
 
+// ── 权利要求树 / Claim Tree ──────────────────────────────────────
+
+/// 权利要求节点
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
+pub struct ClaimNode {
+    pub id: String,
+    pub idea_id: String,
+    pub claim_number: u32,
+    pub claim_type: ClaimType,
+    pub parent_claim_id: Option<String>,
+    pub content: String,
+    pub features: Vec<TechnicalFeature>,
+    pub created_at: String,
+}
+
+/// 权利要求类型
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
+pub enum ClaimType {
+    Independent,
+    Dependent,
+}
+
+/// 必要技术特征
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
+pub struct TechnicalFeature {
+    pub id: String,
+    pub claim_id: String,
+    pub description: String,
+    pub novelty_flag: bool,
+    pub evidence_ids: Vec<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IdeaSummary {
     pub id: String,

@@ -9,6 +9,8 @@
 mod ai;
 mod db;
 mod error;
+mod experiment;
+mod orchestrator;
 mod patent;
 pub mod pipeline;
 mod routes;
@@ -161,6 +163,11 @@ async fn main() -> anyhow::Result<()> {
             get(routes::api_get_feature_cards).post(routes::api_create_feature_card),
         )
         .route("/api/feature-cards/diff", get(routes::api_feature_card_diff))
+        // 版本管理 + 迭代 API / Version management + iterate API
+        .route("/api/idea/:id/iterate", post(routes::api_idea_iterate))
+        .route("/api/idea/:id/versions", get(routes::api_idea_versions))
+        .route("/api/idea/:id/branches", get(routes::api_idea_branches))
+        .route("/api/idea/:id/findings", get(routes::api_idea_findings))
         // IPC 分类 API / IPC Classification API
         .route("/api/ipc/tree", get(routes::api_ipc_tree))
         .route("/api/ipc/:code/patents", get(routes::api_ipc_patents))
