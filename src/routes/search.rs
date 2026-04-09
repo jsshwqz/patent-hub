@@ -1423,7 +1423,23 @@ pub async fn search_cnipr(
         || query_clean.chars().all(|c| c.is_ascii_digit());
     let exp = if is_number {
         // 同时搜 公开号 和 申请号（用户可能输入任一种）
-        format!("公开（公告）号='{}' OR 申请号='{}'", query, query.replace('.', ""))
+        // 申请号格式：纯数字（如 2023101234567）
+        // 公开号格式：CN + 数字 + 种类码（如 CN116401354A）
+        let digits: String = query.chars().filter(|c| c.is_ascii_digit()).collect();
+        // 去掉前缀/种类码，得到纯数字用于申请号搜索
+        let app_number = digits.clone();
+        // 构造公开号：保留原始输入（可能已带 CN 前缀）
+        let pub_number = query.trim().to_string();
+        // 还要试 CN + 纯数字（用户可能输入 ZL 号或纯数字）
+        let cn_number = if !pub_number.starts_with("CN") {
+            format!("CN{}", digits)
+        } else {
+            pub_number.clone()
+        };
+        format!(
+            "公开（公告）号='{}' OR 公开（公告）号='{}' OR 申请号='{}'",
+            pub_number, cn_number, app_number
+        )
     } else {
         format!("名称+摘要=({})", query)
     };

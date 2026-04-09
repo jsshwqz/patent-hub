@@ -38,16 +38,20 @@ impl super::Database {
     pub fn detect_search_type(&self, query: &str) -> SearchType {
         let q = query.trim();
 
-        // Patent number format (e.g., CN1234567A, US10000000B2)
-        if q.len() >= 6 && q.len() <= 20 {
+        // Patent number format (e.g., CN1234567A, US10000000B2, ZL202310123456.7)
+        if q.len() >= 6 && q.len() <= 25 {
             let upper = q.to_uppercase();
-            let country_codes = ["CN", "US", "EP", "JP", "KR", "TW", "HK", "WO", "PCT"];
+            let country_codes = ["CN", "US", "EP", "JP", "KR", "TW", "HK", "WO", "PCT", "ZL"];
             for code in country_codes {
                 if upper.starts_with(code) {
                     return SearchType::PatentNumber;
                 }
             }
-            if q.chars().all(|c| c.is_ascii_digit()) && q.len() >= 7 {
+            // Pure digits (7+) or digit.digit application number format (e.g. 202310123456.7)
+            let digits_only: String = q.chars().filter(|c| c.is_ascii_digit()).collect();
+            if digits_only.len() >= 7
+                && q.chars().all(|c| c.is_ascii_digit() || c == '.')
+            {
                 return SearchType::PatentNumber;
             }
         }
@@ -159,30 +163,38 @@ impl super::Database {
     ) -> Result<(Vec<PatentSummary>, usize)> {
         let c = self.conn();
         let offset = page.saturating_sub(1) * page_size;
-        let q = format!("%{}%", query.replace(' ', ""));
+        // Strip spaces and dots for flexible matching (e.g. 202310123456.7 → 2023101234567)
+        let q_clean = query.replace(' ', "").replace('.', "");
+        // Also strip CN/ZL prefix to match against bare numbers in patent_number field
+        let q_digits: String = q_clean.chars().filter(|c| c.is_ascii_digit()).collect();
+        let q_with_prefix = format!("%{}%", query.replace(' ', ""));
+        let q_digits_like = format!("%{}%", q_digits);
         let date_from = date_from.unwrap_or("");
         let date_to = date_to.unwrap_or("");
 
+        // Match either the original query or just the digit portion
         let total: usize = c
             .prepare(
                 "SELECT COUNT(*) FROM patents
-             WHERE REPLACE(patent_number, ' ', '') LIKE ?1
+             WHERE (REPLACE(REPLACE(patent_number, ' ', ''), '.', '') LIKE ?1
+                    OR REPLACE(REPLACE(patent_number, ' ', ''), '.', '') LIKE ?4)
              AND (?2 = '' OR filing_date >= ?2)
              AND (?3 = '' OR filing_date <= ?3)",
             )?
-            .query_row(params![q, date_from, date_to], |r| r.get(0))?;
+            .query_row(params![q_with_prefix, date_from, date_to, q_digits_like], |r| r.get(0))?;
 
         let mut stmt = c.prepare(
             "SELECT id,patent_number,title,abstract_text,applicant,inventor,filing_date,country
              FROM patents
-             WHERE REPLACE(patent_number, ' ', '') LIKE ?1
+             WHERE (REPLACE(REPLACE(patent_number, ' ', ''), '.', '') LIKE ?1
+                    OR REPLACE(REPLACE(patent_number, ' ', ''), '.', '') LIKE ?4)
              AND (?2 = '' OR filing_date >= ?2)
              AND (?3 = '' OR filing_date <= ?3)
-             ORDER BY filing_date DESC LIMIT ?4 OFFSET ?5",
+             ORDER BY filing_date DESC LIMIT ?5 OFFSET ?6",
         )?;
         let rows = stmt
             .query_map(
-                params![q, date_from, date_to, page_size as i64, offset as i64],
+                params![q_with_prefix, date_from, date_to, q_digits_like, page_size as i64, offset as i64],
                 |r| {
                     Ok(PatentSummary {
                         id: r.get(0)?,
