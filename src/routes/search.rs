@@ -507,8 +507,8 @@ pub async fn api_search_online(
         }
     }
 
-    // Fallback 4: SerpAPI 百度引擎（国内专利搜索，比搜狗质量高）
-    if is_cn_query && !api_key.is_empty() && api_key != "your-serpapi-key-here" {
+    // Fallback 4: SerpAPI 百度引擎（兜底，不管国内国外都试——Google 搜不到的百度可能有）
+    if !api_key.is_empty() && api_key != "your-serpapi-key-here" {
         println!("[ONLINE] Trying SerpAPI Baidu engine for CN patent...");
         let client = reqwest::Client::new();
         let baidu_url = format!(
