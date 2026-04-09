@@ -244,7 +244,7 @@ pub async fn api_search_online(
     };
     println!("[ONLINE] region resolve: is_cn={} is_intl={}", is_cn_query, is_intl_query);
 
-    if is_cn_query && s.config.read().unwrap().has_cnipr() {
+    if is_cn_query && s.config.read().unwrap_or_else(|e| e.into_inner()).has_cnipr() {
         println!("[ONLINE] Using CNIPR (国知局) for Chinese patent search");
         match search_cnipr(&req.query, &s.config, req.page).await {
             Ok((patents, total)) if !patents.is_empty() => {
@@ -292,7 +292,7 @@ pub async fn api_search_online(
         }
     }
 
-    let api_key = s.config.read().unwrap().serpapi_key.clone();
+    let api_key = s.config.read().unwrap_or_else(|e| e.into_inner()).serpapi_key.clone();
     if !api_key.is_empty() && api_key != "your-serpapi-key-here" {
         let client = reqwest::Client::new();
         let serp_page = if req.page < 1 { 1 } else { req.page };
@@ -453,7 +453,7 @@ pub async fn api_search_online(
     }
 
     // Fallback 3: Lens.org patent search (国内可用，无需 VPN)
-    let lens_key = s.config.read().unwrap().lens_api_key.clone();
+    let lens_key = s.config.read().unwrap_or_else(|e| e.into_inner()).lens_api_key.clone();
     if !lens_key.is_empty() {
         println!("[ONLINE] Trying Lens.org patent search (国内可用)...");
         let search_query = build_online_query(
@@ -605,7 +605,7 @@ pub async fn api_search_online(
                     score_source: Some("sogou_free".to_string()),
                 })
                 .collect();
-            let has_cnipr = s.config.read().unwrap().has_cnipr();
+            let has_cnipr = s.config.read().unwrap_or_else(|e| e.into_inner()).has_cnipr();
             let hint = if is_cn_query && has_cnipr {
                 Some("CNIPR 国知局授权已失效，当前降级为搜狗搜索。请到 open.cnipr.com 检查应用授权。".to_string())
             } else if is_cn_query {
@@ -1333,7 +1333,7 @@ async fn cnipr_login(
     config: &std::sync::Arc<std::sync::RwLock<super::AppConfig>>,
 ) -> Option<(String, String, String)> {
     let (client_id, client_secret, user, password) = {
-        let c = config.read().unwrap();
+        let c = config.read().unwrap_or_else(|e| e.into_inner());
         // Check if token is still valid (with 60s buffer)
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -1396,7 +1396,7 @@ async fn cnipr_login(
 
     // Cache token in config
     {
-        let mut c = config.write().unwrap();
+        let mut c = config.write().unwrap_or_else(|e| e.into_inner());
         c.cnipr_access_token = access_token.clone();
         c.cnipr_open_id = open_id.clone();
         c.cnipr_token_expires = now + expires_in;

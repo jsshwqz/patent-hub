@@ -167,7 +167,7 @@ pub async fn api_ai_chat_stream(
     State(s): State<AppState>,
     Json(req): Json<AiChatRequest>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     let ctx = req
         .patent_id
         .as_ref()
@@ -200,8 +200,8 @@ pub async fn api_ai_chat(
     State(s): State<AppState>,
     Json(req): Json<AiChatRequest>,
 ) -> Json<AiResponse> {
-    let ai = s.config.read().unwrap().ai_client();
-    let serpapi_key = s.config.read().unwrap().serpapi_key.clone();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let serpapi_key = s.config.read().unwrap_or_else(|e| e.into_inner()).serpapi_key.clone();
 
     // Optional web search: fetch real-time info before AI response
     let web_context = if req.web_search {
@@ -255,7 +255,7 @@ pub async fn api_ai_summarize(
     State(s): State<AppState>,
     Json(req): Json<FetchPatentRequest>,
 ) -> Json<AiResponse> {
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     match s.db.get_patent(&req.patent_number) {
         Ok(Some(p)) => match ai
             .summarize_patent(&p.title, &p.abstract_text, &p.claims)
@@ -296,7 +296,7 @@ pub async fn api_ai_compare(
         }
     };
 
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     let p1_abstract: String = p1.abstract_text.chars().take(500).collect();
     let p1_claims: String = p1.claims.chars().take(1000).collect();
     let p2_abstract: String = p2.abstract_text.chars().take(500).collect();
@@ -382,7 +382,7 @@ pub async fn api_ai_analyze_results(
         query, patent_list
     );
 
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     match ai.chat(&prompt, None).await {
         Ok(content) => {
             let trimmed = content.trim();
@@ -420,7 +420,7 @@ pub async fn api_ai_claims_analysis(
         return Json(json!({"error": "该专利没有权利要求数据，请先获取完整专利信息"}));
     }
 
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     match ai.analyze_claims(&patent.title, &patent.claims).await {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("分析失败: {}", e)})),
@@ -474,7 +474,7 @@ pub async fn api_ai_risk_assessment(
         )}));
     }
 
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     match ai.assess_infringement(product_desc, &patents_info).await {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("评估失败: {}", e)})),
@@ -513,7 +513,7 @@ pub async fn api_ai_compare_matrix(
         }
     }
 
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     match ai.compare_multiple(&patents_info).await {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("对比失败: {}", e)})),
@@ -547,7 +547,7 @@ pub async fn api_ai_batch_summarize(
         }
     }
 
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     let results = ai.batch_summarize(&patents_data).await;
 
     let summaries: Vec<serde_json::Value> = results

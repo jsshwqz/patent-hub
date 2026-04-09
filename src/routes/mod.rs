@@ -193,7 +193,7 @@ impl AppState {
             let stale_threshold = std::time::Duration::from_secs(300); // 5 分钟
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                let mut ch = channels.lock().unwrap();
+                let mut ch = channels.lock().unwrap_or_else(|e| e.into_inner());
                 let before = ch.len();
                 ch.retain(|id, entry| {
                     let stale = entry.created_at.elapsed() > stale_threshold;

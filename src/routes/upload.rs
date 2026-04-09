@@ -52,7 +52,7 @@ pub async fn api_upload_compare(
 
     let file_content = if is_image {
         // For images, use AI vision to describe the content
-        let ai_client = s.config.read().unwrap().ai_client();
+        let ai_client = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
         match describe_image_with_ai(&ai_client, &file_bytes, &ext).await {
             Ok(description) => description,
             Err(e) => return Json(json!({"error": format!("图片识别失败: {}", e)})),
@@ -99,7 +99,7 @@ pub async fn api_upload_compare(
         return Json(json!({"error": "文件内容为空"}));
     }
 
-    let ai_client = s.config.read().unwrap().ai_client();
+    let ai_client = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
 
     let file_type_label = if is_image {
         "图片识别内容"
@@ -167,7 +167,7 @@ pub async fn api_upload_extract(
     let is_image = matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp");
 
     let text = if is_image {
-        let ai_client = s.config.read().unwrap().ai_client();
+        let ai_client = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
         match describe_image_with_ai(&ai_client, &file_bytes, &ext).await {
             Ok(desc) => desc,
             Err(e) => return Json(json!({"error": format!("图片识别失败: {}", e)})),

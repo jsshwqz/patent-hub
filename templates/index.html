@@ -338,6 +338,7 @@
                     const resp = await fetch('/api/upload/extract', {
                         method: 'POST', body: formData
                     });
+                    if (!resp.ok) throw new Error('上传失败 (' + resp.status + ')');
                     const data = await resp.json();
                     if (data.text) {
                         description += '\n\n---附件: ' + f.name + '---\n' + data.text.substring(0, 3000);
@@ -356,6 +357,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ title, description, input_type: uploadedFiles.length > 0 ? 'mixed' : 'text' })
             });
+            if (!resp.ok) { alert('服务器错误 (' + resp.status + ')'); return; }
             const data = await resp.json();
             if (!data.id) { alert(data.message || '提交失败'); return; }
 
@@ -419,6 +421,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({patent_number: num, source})
             });
+            if (!resp.ok) throw new Error('服务器错误 (' + resp.status + ')');
             const data = await resp.json();
             if (data.status === 'ok') {
                 el.innerHTML = '';

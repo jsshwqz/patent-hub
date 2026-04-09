@@ -337,6 +337,7 @@ async function doSearch(page) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
+        if (!res.ok) throw new Error('服务器错误 (' + res.status + ')');
         const data = await res.json();
         lastResponse = data;
         lastPage = page;
@@ -525,6 +526,7 @@ async function showStats() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(statsReq)
         });
+        if (!res.ok) throw new Error('服务器错误 (' + res.status + ')');
         const data = await res.json();
         const applicants = Array.isArray(data.applicants) ? data.applicants : [];
         const countries = Array.isArray(data.countries) ? data.countries : [];
@@ -614,6 +616,7 @@ async function compareMatrix() {
     resultDiv.innerHTML = '<p style="color:#58a6ff;">⏳ 正在生成对比矩阵 (' + ids.length + '条)...</p>';
     try {
         var resp = await fetch('/api/ai/compare-matrix', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({patent_ids: ids}) });
+        if (!resp.ok) throw new Error('服务器错误 (' + resp.status + ')');
         var data = await resp.json();
         if (data.status === 'ok') {
             resultDiv.innerHTML = '<h3 style="color:#8b5cf6;margin-bottom:12px;">📊 技术对比矩阵</h3><div style="padding:16px;background:#0d1117;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;">' + escapeHtml(data.analysis).replace(/\n/g, '<br>') + '</div>';
@@ -649,6 +652,7 @@ async function runRiskAssessment() {
     resultDiv.innerHTML = '<p style="color:#58a6ff;">⏳ 正在评估侵权风险...</p>';
     try {
         var resp = await fetch('/api/ai/risk', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({product_description: productDesc, patent_ids: patentIds}) });
+        if (!resp.ok) throw new Error('服务器错误 (' + resp.status + ')');
         var data = await resp.json();
         if (data.status === 'ok') {
             resultDiv.innerHTML = '<div style="padding:12px;background:#0d1117;border-radius:6px;color:#c9d1d9;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto;">' + escapeHtml(data.analysis).replace(/\n/g, '<br>') + '</div>';
@@ -679,6 +683,7 @@ async function batchSummarize() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({patent_ids: ids})
         });
+        if (!response.ok) throw new Error('服务器错误 (' + response.status + ')');
         var data = await response.json();
         if (data.status === 'ok' && data.summaries) {
             var cardsHtml = data.summaries.map(function(item) {

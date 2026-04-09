@@ -84,7 +84,7 @@ pub async fn api_idea_analyze(
     }
 
     // Run pipeline in quick mode (synchronous await)
-    let config = s.config.read().unwrap().clone();
+    let config = s.config.read().unwrap_or_else(|e| e.into_inner()).clone();
     let ai_client = config.ai_client();
     let db = s.db.clone();
     let runner = PipelineRunner::new(
@@ -285,7 +285,7 @@ pub async fn api_idea_chat(
                  保留所有关键技术结论、决策和未解决的问题：\n\n{}",
                 idea.title, conv_text
             );
-            let ai_tmp = s.config.read().unwrap().ai_client();
+            let ai_tmp = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
             if let Ok(compressed) = ai_tmp.chat(&compress_prompt, None).await {
                 let _ = s.db.update_idea_summary(&idea_id, &compressed);
                 summary = compressed;
@@ -382,7 +382,7 @@ pub async fn api_idea_chat(
     }
 
     // Call AI with full message history (preserves multi-turn context)
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     let ai_response = match ai.chat_with_history(&system_context, chat_history, 0.7).await {
         Ok(content) => content,
         Err(e) => {
@@ -449,7 +449,7 @@ pub async fn api_idea_pipeline(
     // 创建进度广播通道 / Create broadcast channel for progress
     let (tx, _) = tokio::sync::broadcast::channel::<PipelineProgress>(64);
     {
-        let mut channels = s.pipeline_channels.lock().unwrap();
+        let mut channels = s.pipeline_channels.lock().unwrap_or_else(|e| e.into_inner());
         channels.insert(id.to_string(), super::PipelineChannelEntry {
             sender: tx.clone(),
             created_at: std::time::Instant::now(),
@@ -457,7 +457,7 @@ pub async fn api_idea_pipeline(
     }
 
     // Build runner from config
-    let config = s.config.read().unwrap().clone();
+    let config = s.config.read().unwrap_or_else(|e| e.into_inner()).clone();
     let ai_client = config.ai_client();
     let db = s.db.clone();
     let serpapi_key = config.serpapi_key.clone();
@@ -563,7 +563,7 @@ pub async fn api_idea_pipeline(
         }
 
         // Clean up channel
-        let mut ch = channels.lock().unwrap();
+        let mut ch = channels.lock().unwrap_or_else(|e| e.into_inner());
         ch.remove(&idea_id);
     });
 
@@ -583,7 +583,7 @@ pub async fn api_idea_resume(
         Err(e) => return Json(json!({"status": "error", "message": e.to_string()})),
     }
 
-    let config = s.config.read().unwrap().clone();
+    let config = s.config.read().unwrap_or_else(|e| e.into_inner()).clone();
     let ai_client = config.ai_client();
     let db = s.db.clone();
     let runner = PipelineRunner::new(
@@ -638,7 +638,7 @@ pub async fn api_idea_progress(
         let mut rx = None;
         for _ in 0..10 {
             {
-                let ch = channels.lock().unwrap();
+                let ch = channels.lock().unwrap_or_else(|e| e.into_inner());
                 if let Some(entry) = ch.get(&id) {
                     rx = Some(entry.sender.subscribe());
                     break;
@@ -959,7 +959,7 @@ pub async fn api_idea_summarize_discussion(
         conversation.chars().take(4000).collect::<String>()
     );
 
-    let ai = s.config.read().unwrap().ai_client();
+    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
     match ai.chat(&prompt, None).await {
         Ok(summary) => {
             // Save summary to DB
@@ -1107,7 +1107,7 @@ pub async fn api_idea_iterate(
     let iteration = ctx.iteration_count;
 
     // 用 Orchestrator 从 SearchWeb 跳转重跑（不是线性续跑）
-    let config = s.config.read().unwrap().clone();
+    let config = s.config.read().unwrap_or_else(|e| e.into_inner()).clone();
     let mut orch = crate::orchestrator::engine::Orchestrator::new(
         config.ai_client(),
         s.db.clone(),

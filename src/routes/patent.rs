@@ -40,7 +40,7 @@ pub async fn api_enrich_patent(
         return Json(json!({"status":"ok","message":"Already enriched","patent":patent}));
     }
 
-    let api_key = s.config.read().unwrap().serpapi_key.clone();
+    let api_key = s.config.read().unwrap_or_else(|e| e.into_inner()).serpapi_key.clone();
     if api_key.is_empty() {
         return Json(json!({"status":"error","message":"SERPAPI_KEY not configured"}));
     }
@@ -542,7 +542,7 @@ pub async fn api_patent_pdf(
             patent.patent_number
         );
         // Try SerpAPI enrich
-        let api_key = s.config.read().unwrap().serpapi_key.clone();
+        let api_key = s.config.read().unwrap_or_else(|e| e.into_inner()).serpapi_key.clone();
         if !api_key.is_empty() {
             let lang = if patent.country == "CN" || patent.patent_number.starts_with("CN") {
                 "zh"
@@ -883,7 +883,7 @@ async fn fetch_legal_from_google_patents(
     patent_number: &str,
     config: &Arc<RwLock<super::AppConfig>>,
 ) -> anyhow::Result<LegalStatusResult> {
-    let serpapi_key = config.read().unwrap().serpapi_key.clone();
+    let serpapi_key = config.read().unwrap_or_else(|e| e.into_inner()).serpapi_key.clone();
     if serpapi_key.is_empty() {
         return Err(anyhow::anyhow!("SerpAPI key not configured"));
     }
@@ -938,7 +938,7 @@ async fn fetch_legal_from_lens(
     patent_number: &str,
     config: &Arc<RwLock<super::AppConfig>>,
 ) -> anyhow::Result<LegalStatusResult> {
-    let lens_key = config.read().unwrap().lens_api_key.clone();
+    let lens_key = config.read().unwrap_or_else(|e| e.into_inner()).lens_api_key.clone();
     if lens_key.is_empty() {
         return Err(anyhow::anyhow!("Lens.org key not configured"));
     }

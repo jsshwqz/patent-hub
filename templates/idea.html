@@ -312,6 +312,7 @@
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ id: ideaId }),
                 });
+                if (!analyzeResp.ok) throw new Error('服务器错误 (' + analyzeResp.status + ')');
                 var analyzeData = await analyzeResp.json();
                 if (analyzeData.status === 'ok') {
                     showStatus('done', i18nLang === 'en' ? 'Quick validation complete' : '快速验证完成');
@@ -323,12 +324,14 @@
                 }
             } else {
                 document.getElementById('status-area').innerHTML = DOMPurify.sanitize(buildPipelineUI());
+                var sseErrorCount = 0;
                 await new Promise(function(resolve) {
                     var eventSource = new EventSource('/api/idea/' + ideaId + '/progress');
                     var pipelineStarted = false;
                     var timeout = setTimeout(function() { eventSource.close(); resolve(); }, 300000);
 
                     eventSource.onopen = function() {
+                        sseErrorCount = 0;
                         if (!pipelineStarted) {
                             pipelineStarted = true;
                             fetch('/api/idea/pipeline', {
@@ -345,6 +348,8 @@
                     };
                     eventSource.addEventListener('done', function() { clearTimeout(timeout); eventSource.close(); resolve(); });
                     eventSource.onerror = function() {
+                        sseErrorCount++;
+                        if (sseErrorCount <= 3) return; // let browser auto-reconnect a few times
                         clearTimeout(timeout); eventSource.close();
                         if (!pipelineStarted) {
                             pipelineStarted = true;
@@ -356,8 +361,16 @@
                         resolve();
                     };
                 });
-                var reportResp = await fetch('/api/idea/' + ideaId + '/report');
-                var reportData = await reportResp.json();
+                // Poll for report readiness (pipeline may still be running after SSE disconnect)
+                var reportData = null;
+                for (var attempt = 0; attempt < 30; attempt++) {
+                    var reportResp = await fetch('/api/idea/' + ideaId + '/report');
+                    if (!reportResp.ok) { await new Promise(function(r) { setTimeout(r, 2000); }); continue; }
+                    reportData = await reportResp.json();
+                    if (reportData.status === 'ok') break;
+                    await new Promise(function(r) { setTimeout(r, 2000); });
+                }
+                if (!reportData) reportData = { status: 'error', message: '获取报告超时' };
                 if (reportData.status === 'ok') {
                     var fill = document.getElementById('pipeline-bar-fill');
                     var pctEl = document.getElementById('pipeline-percent');
@@ -414,6 +427,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: submitData.id }),
                 });
+                if (!analyzeResp.ok) throw new Error('服务器错误 (' + analyzeResp.status + ')');
                 const analyzeData = await analyzeResp.json();
 
                 if (analyzeData.status === 'ok') {
@@ -430,6 +444,7 @@
                 document.getElementById('status-area').innerHTML = DOMPurify.sanitize(buildPipelineUI());
 
                 // Connect SSE FIRST, then start pipeline (avoids race condition)
+                var sseErrors = 0;
                 await new Promise(function(resolve, reject) {
                     var eventSource = new EventSource('/api/idea/' + submitData.id + '/progress');
                     var pipelineStarted = false;
@@ -440,6 +455,7 @@
 
                     eventSource.onopen = function() {
                         // SSE connected — now safe to start pipeline
+                        sseErrors = 0;
                         if (!pipelineStarted) {
                             pipelineStarted = true;
                             fetch('/api/idea/pipeline', {
@@ -470,6 +486,8 @@
                     });
 
                     eventSource.onerror = function() {
+                        sseErrors++;
+                        if (sseErrors <= 3) return; // let browser auto-reconnect a few times
                         clearTimeout(timeout);
                         eventSource.close();
                         // If pipeline wasn't started yet, start it without SSE
@@ -485,9 +503,16 @@
                     };
                 });
 
-                // Load final report
-                const reportResp = await fetch('/api/idea/' + submitData.id + '/report');
-                const reportData = await reportResp.json();
+                // Poll for report readiness (pipeline may still be running after SSE disconnect)
+                var reportData = null;
+                for (var _attempt = 0; _attempt < 30; _attempt++) {
+                    var reportResp = await fetch('/api/idea/' + submitData.id + '/report');
+                    if (!reportResp.ok) { await new Promise(function(r) { setTimeout(r, 2000); }); continue; }
+                    reportData = await reportResp.json();
+                    if (reportData.status === 'ok') break;
+                    await new Promise(function(r) { setTimeout(r, 2000); });
+                }
+                if (!reportData) reportData = { status: 'error', message: '获取报告超时' };
 
                 if (reportData.status === 'ok') {
                     // Update pipeline bar to 100%
@@ -887,8 +912,9 @@
             }
 
             document.querySelectorAll('.history-item').forEach(function(el) { el.classList.remove('active'); });
-            if (event && event.target) {
-                var item = event.target.closest('.history-item');
+            var clickTarget = (typeof event !== 'undefined' && event && event.target) ? event.target : null;
+            if (clickTarget) {
+                var item = clickTarget.closest('.history-item');
                 if (item) item.classList.add('active');
             }
 
@@ -1085,6 +1111,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: msg })
             });
+            if (!res.ok) throw new Error('服务器错误 (' + res.status + ')');
             var data = await res.json();
             var indicator = document.getElementById('thinking-indicator');
             if (indicator) indicator.remove();
