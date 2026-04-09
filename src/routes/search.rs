@@ -520,12 +520,16 @@ pub async fn api_search_online(
             if let Ok(json) = resp.json::<serde_json::Value>().await {
                 if let Some(results) = json["organic_results"].as_array() {
                     if !results.is_empty() {
-                        let patents: Vec<PatentSummary> = results.iter().take(10).map(|r| {
+                        let query_clean = req.query.replace('.', "").replace('-', "");
+                        let mut patents: Vec<PatentSummary> = results.iter().take(15).map(|r| {
                             let title = r["title"].as_str().unwrap_or("").to_string();
                             let snippet = r["snippet"].as_str().unwrap_or("").to_string();
                             let link = r["link"].as_str().unwrap_or("").to_string();
-                            // 尝试从天眼查/SooPAT 等链接中提取专利号
                             let patent_number = extract_cn_patent_number(&title, &snippet, &link);
+                            // 精确匹配查询号的排前面
+                            let all_text = format!("{} {} {}", title, snippet, link);
+                            let exact_match = all_text.contains(&req.query) || all_text.contains(&query_clean);
+                            let score = if exact_match { 0.95 } else { 0.3 };
                             PatentSummary {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 patent_number,
@@ -535,10 +539,12 @@ pub async fn api_search_online(
                                 inventor: String::new(),
                                 filing_date: String::new(),
                                 country: "CN".to_string(),
-                                relevance_score: Some(0.7),
+                                relevance_score: Some(score),
                                 score_source: Some("serpapi_baidu".to_string()),
                             }
                         }).collect();
+                        // 按相关度排序：精确匹配排前
+                        patents.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal));
                         println!("[ONLINE] SerpAPI Baidu found {} results", patents.len());
                         return Json(json!({
                             "patents": patents,
