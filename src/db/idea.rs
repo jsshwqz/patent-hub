@@ -49,6 +49,16 @@ impl super::Database {
         Ok(())
     }
 
+    /// 启动时将所有卡在 "analyzing" 的创意重置为 "error"（上次 pipeline 中断）
+    pub fn reset_stale_analyzing(&self) -> Result<usize> {
+        let c = self.conn();
+        let count = c.execute(
+            "UPDATE ideas SET status='error' WHERE status='analyzing'",
+            [],
+        )?;
+        Ok(count)
+    }
+
     pub fn delete_idea(&self, id: &str) -> Result<()> {
         let c = self.conn();
         c.execute("DELETE FROM ideas WHERE id=?1", params![id])?;

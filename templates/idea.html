@@ -129,6 +129,26 @@
                 </details>
             </div>
 
+            <!-- Key findings panel -->
+            <div id="key-findings-panel" style="display:none; margin-top:16px; padding:16px; background:#161b22; border-radius:8px; border:1px solid #30363d;">
+                <details open>
+                    <summary style="cursor:pointer; color:#58a6ff; font-weight:bold; font-size:1.05em;">
+                        🔍 <span data-i18n="idea.keyFindings">关键发现 / Key Findings</span> (<span id="key-findings-count">0</span>)
+                    </summary>
+                    <div id="key-findings-list" style="margin-top:12px;"></div>
+                </details>
+            </div>
+
+            <!-- Version history panel -->
+            <div id="version-history-panel" style="display:none; margin-top:16px; padding:16px; background:#161b22; border-radius:8px; border:1px solid #30363d;">
+                <details>
+                    <summary style="cursor:pointer; color:#d2a8ff; font-weight:bold; font-size:1.05em;">
+                        📜 <span id="version-history-title">版本历史 / Version History</span> (<span id="version-count">0</span>)
+                    </summary>
+                    <div id="version-list" style="margin-top:12px;"></div>
+                </details>
+            </div>
+
             <!-- Multi-round discussion panel -->
             <div id="discussion-panel" style="display:none; margin-top:24px; padding:20px; background:#161b22; border-radius:8px; border:1px solid #30363d;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
@@ -392,6 +412,178 @@
         }
     }
 
+    // 断点续跑：从上次失败的步骤继续
+    async function resumePipeline(ideaId) {
+        if (isAnalyzing) return;
+        isAnalyzing = true;
+        var btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = t('idea.analyzing');
+
+        document.getElementById('status-area').innerHTML = DOMPurify.sanitize(buildPipelineUI());
+
+        try {
+            var sseErrCount = 0;
+            await new Promise(function(resolve) {
+                var eventSource = new EventSource('/api/idea/' + ideaId + '/progress');
+                var resumeStarted = false;
+                var timeout = setTimeout(function() { eventSource.close(); resolve(); }, 300000);
+
+                eventSource.onopen = function() {
+                    sseErrCount = 0;
+                    if (!resumeStarted) {
+                        resumeStarted = true;
+                        fetch('/api/idea/' + ideaId + '/resume', { method: 'POST' });
+                    }
+                };
+                eventSource.onmessage = function(e) {
+                    try {
+                        var progress = JSON.parse(e.data);
+                        updatePipelineStep(progress.step_index, progress.status, progress.sub_step || null, progress.sub_progress || null, progress.message || null);
+                    } catch(err) {}
+                };
+                eventSource.addEventListener('done', function() { clearTimeout(timeout); eventSource.close(); resolve(); });
+                eventSource.onerror = function() {
+                    sseErrCount++;
+                    if (sseErrCount <= 3) return;
+                    clearTimeout(timeout); eventSource.close();
+                    if (!resumeStarted) {
+                        resumeStarted = true;
+                        fetch('/api/idea/' + ideaId + '/resume', { method: 'POST' });
+                    }
+                    resolve();
+                };
+            });
+
+            // Poll for report
+            var reportData = null;
+            for (var attempt = 0; attempt < 30; attempt++) {
+                var reportResp = await fetch('/api/idea/' + ideaId + '/report');
+                if (!reportResp.ok) { await new Promise(function(r) { setTimeout(r, 2000); }); continue; }
+                reportData = await reportResp.json();
+                if (reportData.status === 'ok') break;
+                await new Promise(function(r) { setTimeout(r, 2000); });
+            }
+            if (!reportData) reportData = { status: 'error', message: '获取报告超时' };
+
+            if (reportData.status === 'ok') {
+                var fill = document.getElementById('pipeline-bar-fill');
+                var pctEl = document.getElementById('pipeline-percent');
+                if (fill) { fill.style.width = '100%'; fill.style.background = '#238636'; }
+                if (pctEl) pctEl.textContent = '100% ✓';
+                displayResults(reportData.report);
+                loadHistory();
+                showDiscussionPanel();
+            } else {
+                showStatus('error', reportData.message || t('idea.analyzeFail'));
+            }
+        } catch(e) {
+            showStatus('error', t('idea.analyzeFail') + '：' + e.message);
+        } finally {
+            isAnalyzing = false;
+            btn.disabled = false;
+            btn.textContent = t('idea.submit');
+        }
+    }
+
+    // 继续迭代：基于当前分析结果探索更多可能性
+    async function startIterate(ideaId) {
+        if (isAnalyzing) return;
+        isAnalyzing = true;
+        var btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.textContent = t('idea.analyzing');
+
+        showStatus('analyzing', '<span class="spinner"></span>' + (i18nLang === 'en' ? 'Iterating...' : '迭代推演中...'));
+
+        try {
+            var resp = await fetch('/api/idea/' + ideaId + '/iterate', { method: 'POST' });
+            if (!resp.ok) throw new Error('服务器错误 (' + resp.status + ')');
+            var data = await resp.json();
+            if (data.status !== 'ok') throw new Error(data.message || '迭代启动失败');
+
+            showStatus('analyzing', '<span class="spinner"></span>' + (i18nLang === 'en' ? 'Iteration #' + data.iteration + ' running...' : '第 ' + data.iteration + ' 轮迭代运行中...'));
+
+            // Poll for completion (iterate runs async via Orchestrator)
+            var ideaData = null;
+            for (var attempt = 0; attempt < 90; attempt++) {
+                await new Promise(function(r) { setTimeout(r, 2000); });
+                var checkResp = await fetch('/api/idea/' + encodeURIComponent(ideaId));
+                if (!checkResp.ok) continue;
+                ideaData = await checkResp.json();
+                if (ideaData.status === 'ok' && ideaData.idea && (ideaData.idea.status === 'done' || ideaData.idea.status === 'error')) break;
+                ideaData = null;
+            }
+
+            if (ideaData && ideaData.idea && ideaData.idea.status === 'done') {
+                showStatus('done', i18nLang === 'en' ? 'Iteration complete' : '迭代完成');
+                displayResults(ideaData.idea);
+                loadHistory();
+                loadVersionHistory(ideaId);
+                showDiscussionPanel();
+            } else if (ideaData && ideaData.idea && ideaData.idea.status === 'error') {
+                showStatus('error', ideaData.idea.analysis || t('idea.analyzeFail'));
+            } else {
+                showStatus('error', i18nLang === 'en' ? 'Iteration timed out' : '迭代超时');
+            }
+        } catch(e) {
+            showStatus('error', t('idea.analyzeFail') + '：' + e.message);
+        } finally {
+            isAnalyzing = false;
+            btn.disabled = false;
+            btn.textContent = t('idea.submit');
+        }
+    }
+
+    // 版本历史加载
+    async function loadVersionHistory(ideaId) {
+        var panel = document.getElementById('version-history-panel');
+        var list = document.getElementById('version-list');
+        var countEl = document.getElementById('version-count');
+        try {
+            var resp = await fetch('/api/idea/' + encodeURIComponent(ideaId) + '/versions');
+            if (!resp.ok) { panel.style.display = 'none'; return; }
+            var data = await resp.json();
+            if (data.status !== 'ok' || !data.versions || data.versions.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+            panel.style.display = 'block';
+            countEl.textContent = data.versions.length;
+            list.innerHTML = '';
+            data.versions.forEach(function(ver) {
+                var row = document.createElement('div');
+                row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;margin-bottom:4px;background:#0d1117;border:1px solid #21262d;border-radius:6px;cursor:pointer;transition:border-color 0.2s;';
+                row.onmouseover = function() { row.style.borderColor = '#58a6ff'; };
+                row.onmouseout = function() { row.style.borderColor = '#21262d'; };
+
+                var left = document.createElement('div');
+                var vLabel = document.createElement('span');
+                vLabel.style.cssText = 'color:#f0f6fc;font-weight:600;font-size:0.9em;';
+                vLabel.textContent = (i18nLang === 'en' ? 'v' : '版本 ') + ver.version_number;
+                left.appendChild(vLabel);
+
+                var stepSpan = document.createElement('span');
+                stepSpan.style.cssText = 'color:#8b949e;font-size:0.8em;margin-left:10px;';
+                stepSpan.textContent = ver.current_step || '';
+                left.appendChild(stepSpan);
+
+                var right = document.createElement('div');
+                right.style.cssText = 'color:#8b949e;font-size:0.8em;';
+                right.textContent = (ver.created_at || '').substring(0, 16);
+
+                row.appendChild(left);
+                row.appendChild(right);
+                row.onclick = function() {
+                    window.open('/api/idea/' + encodeURIComponent(ideaId) + '/report.html?version_id=' + encodeURIComponent(ver.id), '_blank');
+                };
+                list.appendChild(row);
+            });
+        } catch(e) {
+            panel.style.display = 'none';
+        }
+    }
+
     async function submitIdea() {
         const title = document.getElementById('idea-title').value.trim();
         const desc = document.getElementById('idea-desc').value.trim();
@@ -608,6 +800,36 @@
                 '<div class="score-number ' + scoreClass + '" style="background:transparent;">' + Math.round(idea.novelty_score * 10) / 10 + '</div>' +
                 '<div class="score-label">' + (i18nLang === 'en' ? 'Novelty Score / 100 — ' : '新颖性评分 / 100 — ') + scoreLabel + '</div>' +
                 '</div>');
+            // 操作按钮行：导出报告 + 继续迭代
+            if (idea.id) {
+                var actionRow = document.createElement('div');
+                actionRow.style.cssText = 'display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;';
+                var reportTypes = [
+                    { type: 'executive', icon: '📋', zh: '精简版', en: 'Executive' },
+                    { type: 'technical', icon: '🔬', zh: '技术版', en: 'Technical' },
+                    { type: 'full',      icon: '📄', zh: '完整版', en: 'Full Report' }
+                ];
+                var _ideaId = idea.id;
+                reportTypes.forEach(function(rt) {
+                    var btn = document.createElement('button');
+                    btn.textContent = rt.icon + ' ' + (i18nLang === 'en' ? rt.en : rt.zh);
+                    btn.style.cssText = 'padding:6px 14px;background:#8b5cf6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
+                    btn.onmouseenter = function() { btn.style.background = '#7c3aed'; };
+                    btn.onmouseleave = function() { btn.style.background = '#8b5cf6'; };
+                    btn.onclick = function() { openReport(_ideaId, rt.type); };
+                    actionRow.appendChild(btn);
+                });
+                var iterateBtn = document.createElement('button');
+                iterateBtn.textContent = i18nLang === 'en' ? 'Iterate' : '继续迭代';
+                iterateBtn.style.cssText = 'padding:8px 20px;background:#1f6feb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+                iterateBtn.onclick = function() { startIterate(idea.id); };
+                actionRow.appendChild(iterateBtn);
+                document.getElementById('score-area').appendChild(actionRow);
+                var iterateHint = document.createElement('div');
+                iterateHint.style.cssText = 'text-align:center;color:#8b949e;font-size:0.8em;margin-bottom:8px;';
+                iterateHint.textContent = i18nLang === 'en' ? 'Explore more possibilities based on current analysis' : '基于当前分析结果，探索更多可能性';
+                document.getElementById('score-area').appendChild(iterateHint);
+            }
         }
 
         if (idea.analysis) {
@@ -691,6 +913,8 @@
 
         // 加载证据链 / Load evidence chain
         loadEvidenceChain(idea.id);
+        // 加载关键发现 / Load key findings
+        loadKeyFindings(idea.id);
     }
 
     async function loadEvidenceChain(ideaId) {
@@ -770,6 +994,102 @@
         }
     }
 
+    async function openReport(ideaId, reportType) {
+        if (reportType === 'full') {
+            window.open('/api/idea/' + ideaId + '/report.html', '_blank');
+            return;
+        }
+        try {
+            var resp = await fetch('/api/idea/' + ideaId + '/report?type=' + reportType);
+            if (!resp.ok) { alert('获取报告失败'); return; }
+            var data = await resp.json();
+            if (data.status !== 'ok') { alert(data.message || '获取报告失败'); return; }
+            var typeLabel = reportType === 'executive' ? '精简版报告' : '技术版报告';
+            var w = window.open('', '_blank');
+            w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+                '<title>' + typeLabel + '</title>' +
+                '<style>body{font-family:-apple-system,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;background:#0d1117;color:#c9d1d9;line-height:1.7;}' +
+                'h1,h2,h3{color:#58a6ff;}h1{border-bottom:1px solid #30363d;padding-bottom:8px;}' +
+                'strong{color:#f0f6fc;}p{margin:8px 0;}' +
+                '@media print{body{background:#fff;color:#000;}h1,h2,h3{color:#1f2937;}strong{color:#000;}}</style></head><body>');
+            // Simple markdown to HTML: headers, bold, list items
+            var md = data.report || '';
+            var html = md.replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/\n/g, '<br>');
+            w.document.write(html);
+            w.document.write('<hr style="border-color:#30363d;margin-top:30px;"><p style="color:#6e7681;font-size:0.85em;">InnoForge 创研台 · ' + typeLabel + ' · ' + new Date().toLocaleDateString() + '</p>');
+            w.document.write('</body></html>');
+            w.document.close();
+        } catch(e) {
+            alert('获取报告失败: ' + e.message);
+        }
+    }
+
+    async function loadKeyFindings(ideaId) {
+        var panel = document.getElementById('key-findings-panel');
+        var list = document.getElementById('key-findings-list');
+        var countEl = document.getElementById('key-findings-count');
+        try {
+            var resp = await fetch('/api/idea/' + ideaId + '/findings');
+            if (!resp.ok) { panel.style.display = 'none'; return; }
+            var data = await resp.json();
+            if (data.status !== 'ok' || !data.findings || data.findings.length === 0) {
+                panel.style.display = 'none';
+                return;
+            }
+            panel.style.display = 'block';
+            countEl.textContent = data.findings.length;
+            list.innerHTML = '';
+
+            var typeIcons = { discovery: '💡', dead_end: '🚫', insight: '🧠', experiment_result: '🧪' };
+            var typeLabels = { discovery: '发现', dead_end: '死胡同', insight: '洞察', experiment_result: '实验结果' };
+            var typeColors = { discovery: '#3fb950', dead_end: '#f85149', insight: '#d2a8ff', experiment_result: '#58a6ff' };
+
+            data.findings.forEach(function(f) {
+                var card = document.createElement('div');
+                card.className = 'finding-card';
+
+                var icon = typeIcons[f.finding_type] || '📌';
+                var label = typeLabels[f.finding_type] || f.finding_type;
+                var color = typeColors[f.finding_type] || '#8b949e';
+
+                var header = document.createElement('div');
+                header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;';
+                var titleSpan = document.createElement('span');
+                titleSpan.className = 'title';
+                titleSpan.textContent = icon + ' ' + (f.title || '');
+                var badge = document.createElement('span');
+                badge.style.cssText = 'background:' + color + '22;color:' + color + ';padding:1px 8px;border-radius:3px;font-size:0.75em;';
+                badge.textContent = label;
+                header.appendChild(titleSpan);
+                header.appendChild(badge);
+                card.appendChild(header);
+
+                if (f.content) {
+                    var contentDiv = document.createElement('div');
+                    contentDiv.className = 'snippet';
+                    contentDiv.textContent = f.content.length > 300 ? f.content.substring(0, 300) + '...' : f.content;
+                    card.appendChild(contentDiv);
+                }
+
+                if (f.source_step) {
+                    var meta = document.createElement('div');
+                    meta.style.cssText = 'color:#6e7681;font-size:0.75em;margin-top:4px;';
+                    meta.textContent = '来源步骤: ' + f.source_step;
+                    card.appendChild(meta);
+                }
+
+                list.appendChild(card);
+            });
+        } catch(e) {
+            panel.style.display = 'none';
+        }
+    }
+
     function showStatus(type, msg) {
         document.getElementById('status-area').innerHTML = DOMPurify.sanitize(
             '<div class="status-bar status-' + type + '">' + msg + '</div>');
@@ -779,6 +1099,7 @@
         document.getElementById('score-area').innerHTML = '';
         document.getElementById('analysis-area').innerHTML = '';
         document.getElementById('findings-area').innerHTML = '';
+        document.getElementById('key-findings-panel').style.display = 'none';
     }
 
     function clearForm() {
@@ -903,9 +1224,26 @@
             if (idea.status === 'done') {
                 showStatus('done', t('idea.done'));
                 displayResults(idea);
+                loadVersionHistory(id);
                 showDiscussionPanel();
             } else if (idea.status === 'error') {
                 showStatus('error', idea.analysis || t('idea.analyzeFail'));
+                // 按钮容器
+                var btnContainer = document.createElement('div');
+                btnContainer.style.cssText = 'display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;';
+                // "恢复推演"按钮（断点续跑）
+                var resumeBtn = document.createElement('button');
+                resumeBtn.textContent = i18nLang === 'en' ? 'Resume Pipeline' : '恢复推演';
+                resumeBtn.style.cssText = 'padding:8px 20px;background:#238636;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+                resumeBtn.onclick = function() { resumePipeline(idea.id); };
+                btnContainer.appendChild(resumeBtn);
+                // "重新推演"按钮（从头开始）
+                var retryBtn = document.createElement('button');
+                retryBtn.textContent = i18nLang === 'en' ? 'Re-run Pipeline' : '重新推演';
+                retryBtn.style.cssText = 'padding:8px 20px;background:#1f6feb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;';
+                retryBtn.onclick = function() { runExistingIdea(idea.id, 'deep'); };
+                btnContainer.appendChild(retryBtn);
+                document.getElementById('status-area').appendChild(btnContainer);
                 showDiscussionPanel();
             } else {
                 showStatus('analyzing', '<span class="spinner"></span>' + t('idea.analyzing'));

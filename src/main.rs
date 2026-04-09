@@ -69,6 +69,14 @@ async fn main() -> anyhow::Result<()> {
         "innoforge.db".to_string()
     };
     let db = db::Database::init(&db_path)?;
+
+    // 启动时将卡在 analyzing 的创意重置为 error（上次 pipeline 中断）
+    match db.reset_stale_analyzing() {
+        Ok(n) if n > 0 => tracing::warn!("Reset {} stale analyzing ideas to error", n),
+        Ok(_) => {}
+        Err(e) => tracing::error!("Failed to reset stale analyzing ideas: {}", e),
+    }
+
     let config = routes::AppConfig::from_db_and_env(Some(&db));
     let state = routes::AppState {
         db: Arc::new(db),
