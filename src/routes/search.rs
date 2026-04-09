@@ -220,10 +220,18 @@ pub async fn api_search_online(
     let online_search_type = parse_search_type(req.search_type.as_deref());
 
     // Priority 0: CNIPR (国知局) for Chinese patent queries
+    let query_trimmed = req.query.trim();
+    let looks_like_cn_patent_number = {
+        // 中国专利申请号格式：纯数字12-13位，可能带点号（如 202210835143.9）
+        let digits_only: String = query_trimmed.chars().filter(|c| c.is_ascii_digit()).collect();
+        digits_only.len() >= 10 && digits_only.len() <= 15
+            && query_trimmed.chars().all(|c| c.is_ascii_digit() || c == '.')
+    };
     let is_cn_query = matches!(req.country.as_deref(), Some("CN"))
-        || req.query.starts_with("CN")
-        || req.query.starts_with("ZL")
-        || req.query.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c));
+        || query_trimmed.starts_with("CN")
+        || query_trimmed.starts_with("ZL")
+        || looks_like_cn_patent_number
+        || query_trimmed.chars().any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c));
 
     if is_cn_query && s.config.read().unwrap().has_cnipr() {
         println!("[ONLINE] Using CNIPR (国知局) for Chinese patent search");
@@ -1325,13 +1333,13 @@ pub async fn search_cnipr(
 
     let from = if page > 1 { (page - 1) * 10 } else { 0 };
 
-    // Build search expression: use 名称 or 摘要 for keyword search
-    // If query looks like a patent number (starts with CN, ZL, etc.), search by number
-    let exp = if query.starts_with("CN")
-        || query.starts_with("ZL")
-        || query.chars().all(|c| c.is_ascii_digit())
-    {
-        format!("公开（公告）号='{}'", query)
+    // Build search expression
+    let query_clean = query.trim().replace('.', "");
+    let is_number = query.starts_with("CN") || query.starts_with("ZL")
+        || query_clean.chars().all(|c| c.is_ascii_digit());
+    let exp = if is_number {
+        // 同时搜 公开号 和 申请号（用户可能输入任一种）
+        format!("公开（公告）号='{}' OR 申请号='{}'", query, query.replace('.', ""))
     } else {
         format!("名称+摘要=({})", query)
     };
