@@ -293,7 +293,7 @@ pub async fn api_search_online(
             _ => "",
         };
         // 中文查询时请求中文结果
-        let lang_param = if is_cn_query { "&language=chinese" } else { "" };
+        let lang_param = if is_cn_query { "&hl=zh-cn" } else { "" };
         let url = format!(
             "https://serpapi.com/search.json?engine=google_patents&q={}&page={}{}{}{}&api_key={}",
             urlencoding::encode(&search_query),
@@ -513,14 +513,13 @@ pub async fn api_search_online(
                     score_source: Some("sogou_free".to_string()),
                 })
                 .collect();
-            let has_lens = !s.config.read().unwrap().lens_api_key.is_empty();
-            let hint = if !has_lens {
-                Some(
-                    "当前使用搜狗免费搜索。到「设置」配置 Lens.org Key 可获得更专业的专利搜索。"
-                        .to_string(),
-                )
+            let has_cnipr = s.config.read().unwrap().has_cnipr();
+            let hint = if is_cn_query && has_cnipr {
+                Some("CNIPR 国知局授权已失效，当前降级为搜狗搜索。请到 open.cnipr.com 检查应用授权。".to_string())
+            } else if is_cn_query {
+                Some("未配置 CNIPR 国知局。到「设置」配置可获得更完整的中国专利搜索。".to_string())
             } else {
-                None
+                Some("当前使用搜狗免费搜索。到「设置」配置 SerpAPI Key 可获得更专业的专利搜索。".to_string())
             };
             return Json(json!({
                 "patents": patents,
@@ -1268,7 +1267,7 @@ async fn cnipr_login(
     }
 
     println!("[CNIPR] Logging in as {}...", user);
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap_or_else(|_| reqwest::Client::new());
     let resp = client
         .post("https://open.cnipr.com/oauth/json/user/login")
         .form(&[
@@ -1344,7 +1343,7 @@ pub async fn search_cnipr(
 
     println!("[CNIPR] Search exp='{}' from={}", exp, from);
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap_or_else(|_| reqwest::Client::new());
     let resp = client
         .post(&url)
         .form(&[
