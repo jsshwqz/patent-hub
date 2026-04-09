@@ -512,7 +512,7 @@ pub async fn api_search_online(
         println!("[ONLINE] Trying SerpAPI Baidu engine for CN patent...");
         let client = reqwest::Client::new();
         let baidu_url = format!(
-            "https://serpapi.com/search.json?engine=baidu&q={}&api_key={}",
+            "https://serpapi.com/search.json?engine=baidu&q={}&api_key={}&rn=20",
             urlencoding::encode(&format!("{} 专利", req.query)),
             api_key,
         );
@@ -521,7 +521,25 @@ pub async fn api_search_online(
                 if let Some(results) = json["organic_results"].as_array() {
                     if !results.is_empty() {
                         let query_clean = req.query.replace('.', "").replace('-', "");
-                        let mut patents: Vec<PatentSummary> = results.iter().take(15).map(|r| {
+                        // 专利相关域名白名单，过滤掉不相关的网页
+                        let patent_domains = [
+                            "tianyancha.com", "soopat.com", "patents.google.com", "cnipa.gov.cn",
+                            "baiten.cn", "patent9.com", "xueshu.baidu.com", "epub.cnipa.gov.cn",
+                            "pss-system.cponline.cnipa.gov.cn", "zhuanli.", "patent",
+                        ];
+                        let filtered: Vec<&serde_json::Value> = results.iter().filter(|r| {
+                            let link = r["link"].as_str().unwrap_or("");
+                            let title = r["title"].as_str().unwrap_or("");
+                            let snippet = r["snippet"].as_str().unwrap_or("");
+                            let all = format!("{} {} {}", link, title, snippet);
+                            // 保留：来自专利网站 OR 包含查询号 OR 标题含"专利"
+                            patent_domains.iter().any(|d| link.contains(d))
+                                || all.contains(&req.query) || all.contains(&query_clean)
+                                || title.contains("专利") || title.contains("patent")
+                        }).collect();
+
+                        let source_results = if filtered.is_empty() { results.iter().collect::<Vec<_>>() } else { filtered };
+                        let mut patents: Vec<PatentSummary> = source_results.iter().take(15).map(|r| {
                             let title = r["title"].as_str().unwrap_or("").to_string();
                             let snippet = r["snippet"].as_str().unwrap_or("").to_string();
                             let link = r["link"].as_str().unwrap_or("").to_string();
@@ -529,7 +547,7 @@ pub async fn api_search_online(
                             // 精确匹配查询号的排前面
                             let all_text = format!("{} {} {}", title, snippet, link);
                             let exact_match = all_text.contains(&req.query) || all_text.contains(&query_clean);
-                            let score = if exact_match { 0.95 } else { 0.3 };
+                            let score = if exact_match { 95.0 } else { 30.0 };
                             PatentSummary {
                                 id: uuid::Uuid::new_v4().to_string(),
                                 patent_number,
