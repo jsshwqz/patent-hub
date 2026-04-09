@@ -293,7 +293,17 @@ pub async fn api_search_online(
         }
     }
 
+    // ── 精确专利号查询：当检测为 PatentNumber 时，先尝试 SerpAPI Details 精确抓取 ──
     let api_key = s.config.read().unwrap_or_else(|e| e.into_inner()).serpapi_key.clone();
+    if matches!(online_search_type.as_ref(), Some(SearchType::PatentNumber))
+        && !api_key.is_empty()
+        && api_key != "your-serpapi-key-here"
+    {
+        if let Some(result) = try_exact_patent_lookup(&req.query, &api_key, &s).await {
+            return Json(result);
+        }
+    }
+
     if !api_key.is_empty() && api_key != "your-serpapi-key-here" {
         let client = reqwest::Client::new();
         let serp_page = if req.page < 1 { 1 } else { req.page };
@@ -1586,4 +1596,140 @@ fn extract_cn_patent_number(title: &str, snippet: &str, link: &str) -> String {
 /// 清理 HTML 标签（百度搜索结果含 <em> 等标签）
 fn clean_html_tags(s: &str) -> String {
     regex::Regex::new(r"<[^>]+>").unwrap().replace_all(s, "").to_string()
+}
+
+/// 精确专利号查询：通过 SerpAPI google_patents_details 按专利号精确抓取
+/// 对于中国申请号（如 202210835143.9），会尝试多种格式变体
+async fn try_exact_patent_lookup(
+    query: &str,
+    api_key: &str,
+    state: &super::AppState,
+) -> Option<serde_json::Value> {
+    let q = query.trim();
+    let digits: String = q.chars().filter(|c| c.is_ascii_digit()).collect();
+
+    // Build candidate patent_id formats to try
+    let mut candidates: Vec<String> = Vec::new();
+
+    if q.starts_with("CN") || q.starts_with("US") || q.starts_with("EP")
+        || q.starts_with("WO") || q.starts_with("JP") || q.starts_with("KR")
+    {
+        // Already has country prefix — try as-is
+        candidates.push(format!("patent/{}/en", q));
+        // Strip dots for variant
+        let no_dot = q.replace('.', "");
+        if no_dot != q {
+            candidates.push(format!("patent/{}/en", no_dot));
+        }
+    } else if digits.len() >= 10 && digits.len() <= 15
+        && q.chars().all(|c| c.is_ascii_digit() || c == '.')
+    {
+        // Bare Chinese application number — try CN prefix + kind code variants
+        for kind in &["A", "B", ""] {
+            candidates.push(format!("patent/CN{}{}/en", digits, kind));
+            candidates.push(format!("patent/CN{}{}/zh", digits, kind));
+        }
+    } else {
+        // Other format — try as-is
+        candidates.push(format!("patent/{}/en", q));
+    }
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .ok()?;
+
+    for candidate in &candidates {
+        let url = format!(
+            "https://serpapi.com/search.json?engine=google_patents_details&patent_id={}&api_key={}",
+            urlencoding::encode(candidate),
+            api_key
+        );
+        println!("[EXACT] Trying SerpAPI details: {}", candidate);
+
+        let resp = match client.get(&url).send().await {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        let body = match resp.text().await {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let json: serde_json::Value = match serde_json::from_str(&body) {
+            Ok(j) => j,
+            Err(_) => continue,
+        };
+
+        // Skip if SerpAPI returned error
+        if json.get("error").is_some() {
+            continue;
+        }
+
+        let title = json["title"].as_str().unwrap_or("");
+        if title.is_empty() {
+            continue;
+        }
+
+        // Found it! Build patent and cache
+        let pub_number = json["publication_number"].as_str().unwrap_or(q).to_string();
+        let country = pub_number.chars().take(2).collect::<String>();
+        let patent = Patent {
+            id: uuid::Uuid::new_v4().to_string(),
+            patent_number: pub_number.clone(),
+            title: title.to_string(),
+            abstract_text: json["abstract"].as_str().unwrap_or("").to_string(),
+            description: json["description"].as_str().unwrap_or("").to_string(),
+            claims: json["claims"]
+                .as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("\n\n"))
+                .unwrap_or_default(),
+            applicant: json["assignee"].as_str().unwrap_or("").to_string(),
+            inventor: json["inventor"].as_str().unwrap_or("").to_string(),
+            filing_date: json["filing_date"].as_str().unwrap_or("").to_string(),
+            publication_date: json["publication_date"].as_str().unwrap_or("").to_string(),
+            grant_date: json["grant_date"].as_str().map(|s| s.to_string()),
+            ipc_codes: String::new(),
+            cpc_codes: String::new(),
+            priority_date: json["priority_date"].as_str().unwrap_or("").to_string(),
+            country: country.clone(),
+            kind_code: String::new(),
+            family_id: None,
+            legal_status: String::new(),
+            citations: "[]".into(),
+            cited_by: "[]".into(),
+            source: "serpapi_exact".into(),
+            raw_json: body,
+            created_at: chrono::Utc::now().to_rfc3339(),
+            images: "[]".into(),
+            pdf_url: String::new(),
+        };
+
+        // Cache to local DB
+        let _ = state.db.insert_patent(&patent);
+
+        let summary = PatentSummary {
+            id: patent.id.clone(),
+            patent_number: patent.patent_number.clone(),
+            title: patent.title.clone(),
+            abstract_text: patent.abstract_text.clone(),
+            applicant: patent.applicant.clone(),
+            inventor: patent.inventor.clone(),
+            filing_date: patent.filing_date.clone(),
+            country,
+            relevance_score: Some(100.0),
+            score_source: Some("exact_lookup".to_string()),
+        };
+
+        println!("[EXACT] Found patent: {} — {}", summary.patent_number, summary.title);
+        return Some(serde_json::json!({
+            "patents": [summary],
+            "total": 1,
+            "page": 1,
+            "page_size": 10,
+            "source": "serpapi_exact"
+        }));
+    }
+
+    println!("[EXACT] No exact match found for '{}'", q);
+    None
 }

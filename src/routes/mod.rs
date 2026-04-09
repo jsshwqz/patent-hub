@@ -232,7 +232,20 @@ pub(crate) fn build_online_query(
     let mut search_query = match search_type {
         Some(SearchType::Applicant) => format!("assignee:\"{}\"", q),
         Some(SearchType::Inventor) => format!("inventor:\"{}\"", q),
-        Some(SearchType::PatentNumber) => format!("\"{}\"", q),
+        Some(SearchType::PatentNumber) => {
+            // For bare Chinese application numbers (e.g. "202210835143.9"),
+            // add CN prefix so Google Patents can find them
+            let digits: String = q.chars().filter(|c| c.is_ascii_digit()).collect();
+            let is_bare_cn_app = digits.len() >= 10
+                && digits.len() <= 15
+                && q.chars().all(|c| c.is_ascii_digit() || c == '.');
+            if is_bare_cn_app {
+                // Search both with CN prefix and original format
+                format!("\"CN{}\" OR \"{}\"", digits, q)
+            } else {
+                format!("\"{}\"", q)
+            }
+        }
         _ => q,
     };
     if let Some(from) = date_from {
