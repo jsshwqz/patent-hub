@@ -1598,8 +1598,8 @@ fn clean_html_tags(s: &str) -> String {
     regex::Regex::new(r"<[^>]+>").unwrap().replace_all(s, "").to_string()
 }
 
-/// 精确专利号查询：通过 SerpAPI google_patents_details 按专利号精确抓取
-/// 对于中国申请号（如 202210835143.9），会尝试多种格式变体
+/// 精确专利号查询：通过 SerpAPI 按专利号精确抓取
+/// 对于中国申请号（如 202210835143.9），先通过关键词搜索找到公开号，再用 details API 抓取
 async fn try_exact_patent_lookup(
     query: &str,
     api_key: &str,
@@ -1608,128 +1608,161 @@ async fn try_exact_patent_lookup(
     let q = query.trim();
     let digits: String = q.chars().filter(|c| c.is_ascii_digit()).collect();
 
-    // Build candidate patent_id formats to try
-    let mut candidates: Vec<String> = Vec::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .ok()?;
+
+    // Step 1: Determine patent_id to look up
+    let patent_id: String;
+
+    let is_bare_cn_app = digits.len() >= 10
+        && digits.len() <= 15
+        && q.chars().all(|c| c.is_ascii_digit() || c == '.');
 
     if q.starts_with("CN") || q.starts_with("US") || q.starts_with("EP")
         || q.starts_with("WO") || q.starts_with("JP") || q.starts_with("KR")
     {
-        // Already has country prefix — try as-is
-        candidates.push(format!("patent/{}/en", q));
-        // Strip dots for variant
+        // Already has country prefix — likely a publication number, try directly
         let no_dot = q.replace('.', "");
-        if no_dot != q {
-            candidates.push(format!("patent/{}/en", no_dot));
-        }
-    } else if digits.len() >= 10 && digits.len() <= 15
-        && q.chars().all(|c| c.is_ascii_digit() || c == '.')
-    {
-        // Bare Chinese application number — try CN prefix + kind code variants
-        for kind in &["A", "B", ""] {
-            candidates.push(format!("patent/CN{}{}/en", digits, kind));
-            candidates.push(format!("patent/CN{}{}/zh", digits, kind));
-        }
-    } else {
-        // Other format — try as-is
-        candidates.push(format!("patent/{}/en", q));
-    }
+        let lang = if q.starts_with("CN") { "zh" } else { "en" };
+        patent_id = format!("patent/{}/{}", no_dot, lang);
+    } else if is_bare_cn_app {
+        // Bare Chinese APPLICATION number (e.g. 202210835143.9)
+        // Google Patents indexes by PUBLICATION number, not application number.
+        // We must first search to discover the publication number.
+        let core = if digits.len() >= 13 {
+            &digits[..digits.len() - 1]  // strip check digit
+        } else {
+            &digits
+        };
+        println!("[EXACT] Bare CN app number detected, searching for publication number via '{}'", core);
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .ok()?;
-
-    for candidate in &candidates {
-        let url = format!(
-            "https://serpapi.com/search.json?engine=google_patents_details&patent_id={}&api_key={}",
-            urlencoding::encode(candidate),
+        let search_url = format!(
+            "https://serpapi.com/search.json?engine=google_patents&q={}&page=1&api_key={}",
+            urlencoding::encode(core),
             api_key
         );
-        println!("[EXACT] Trying SerpAPI details: {}", candidate);
+        let resp = client.get(&search_url).send().await.ok()?;
+        let body = resp.text().await.ok()?;
+        let json: serde_json::Value = serde_json::from_str(&body).ok()?;
 
-        let resp = match client.get(&url).send().await {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-        let body = match resp.text().await {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        let json: serde_json::Value = match serde_json::from_str(&body) {
-            Ok(j) => j,
-            Err(_) => continue,
-        };
+        // Find the first result's patent_id
+        let found_id = json["organic_results"]
+            .as_array()
+            .and_then(|arr| arr.first())
+            .and_then(|r| r["patent_id"].as_str())
+            .map(|s| s.to_string());
 
-        // Skip if SerpAPI returned error
-        if json.get("error").is_some() {
-            continue;
+        match found_id {
+            Some(id) => {
+                // For CN patents, use /zh to get Chinese results
+                let id = if id.contains("/CN") {
+                    id.replace("/en", "/zh")
+                } else {
+                    id
+                };
+                println!("[EXACT] Found publication via keyword search: {}", id);
+                patent_id = id;
+            }
+            None => {
+                println!("[EXACT] Keyword search returned no results for '{}'", core);
+                return None;
+            }
         }
-
-        let title = json["title"].as_str().unwrap_or("");
-        if title.is_empty() {
-            continue;
-        }
-
-        // Found it! Build patent and cache
-        let pub_number = json["publication_number"].as_str().unwrap_or(q).to_string();
-        let country = pub_number.chars().take(2).collect::<String>();
-        let patent = Patent {
-            id: uuid::Uuid::new_v4().to_string(),
-            patent_number: pub_number.clone(),
-            title: title.to_string(),
-            abstract_text: json["abstract"].as_str().unwrap_or("").to_string(),
-            description: json["description"].as_str().unwrap_or("").to_string(),
-            claims: json["claims"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("\n\n"))
-                .unwrap_or_default(),
-            applicant: json["assignee"].as_str().unwrap_or("").to_string(),
-            inventor: json["inventor"].as_str().unwrap_or("").to_string(),
-            filing_date: json["filing_date"].as_str().unwrap_or("").to_string(),
-            publication_date: json["publication_date"].as_str().unwrap_or("").to_string(),
-            grant_date: json["grant_date"].as_str().map(|s| s.to_string()),
-            ipc_codes: String::new(),
-            cpc_codes: String::new(),
-            priority_date: json["priority_date"].as_str().unwrap_or("").to_string(),
-            country: country.clone(),
-            kind_code: String::new(),
-            family_id: None,
-            legal_status: String::new(),
-            citations: "[]".into(),
-            cited_by: "[]".into(),
-            source: "serpapi_exact".into(),
-            raw_json: body,
-            created_at: chrono::Utc::now().to_rfc3339(),
-            images: "[]".into(),
-            pdf_url: String::new(),
-        };
-
-        // Cache to local DB
-        let _ = state.db.insert_patent(&patent);
-
-        let summary = PatentSummary {
-            id: patent.id.clone(),
-            patent_number: patent.patent_number.clone(),
-            title: patent.title.clone(),
-            abstract_text: patent.abstract_text.clone(),
-            applicant: patent.applicant.clone(),
-            inventor: patent.inventor.clone(),
-            filing_date: patent.filing_date.clone(),
-            country,
-            relevance_score: Some(100.0),
-            score_source: Some("exact_lookup".to_string()),
-        };
-
-        println!("[EXACT] Found patent: {} — {}", summary.patent_number, summary.title);
-        return Some(serde_json::json!({
-            "patents": [summary],
-            "total": 1,
-            "page": 1,
-            "page_size": 10,
-            "source": "serpapi_exact"
-        }));
+    } else {
+        // Default: use /en for non-CN patents
+        patent_id = format!("patent/{}/en", q);
     }
 
-    println!("[EXACT] No exact match found for '{}'", q);
-    None
+    // Step 2: Fetch full details via google_patents_details
+    let url = format!(
+        "https://serpapi.com/search.json?engine=google_patents_details&patent_id={}&api_key={}",
+        urlencoding::encode(&patent_id),
+        api_key
+    );
+    println!("[EXACT] Fetching details for: {}", patent_id);
+
+    let resp = client.get(&url).send().await.ok()?;
+    let body = resp.text().await.ok()?;
+    let json: serde_json::Value = serde_json::from_str(&body).ok()?;
+
+    if json.get("error").is_some() {
+        println!("[EXACT] Details API error: {}", json["error"]);
+        return None;
+    }
+
+    let title = json["title"].as_str().unwrap_or("");
+    if title.is_empty() {
+        println!("[EXACT] Details returned empty title");
+        return None;
+    }
+
+    // Extract inventors/assignees from arrays
+    let inventor = json["inventors"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|v| v["name"].as_str()).collect::<Vec<_>>().join("; "))
+        .unwrap_or_default();
+    let assignee = json["assignees"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("; "))
+        .unwrap_or_default();
+
+    let pub_number = json["publication_number"].as_str().unwrap_or(q).to_string();
+    let country = pub_number.chars().take(2).collect::<String>();
+    let patent = Patent {
+        id: uuid::Uuid::new_v4().to_string(),
+        patent_number: pub_number.clone(),
+        title: title.to_string(),
+        abstract_text: json["abstract"].as_str().unwrap_or("").to_string(),
+        description: json["description"].as_str().unwrap_or("").to_string(),
+        claims: json["claims"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("\n\n"))
+            .unwrap_or_default(),
+        applicant: assignee.clone(),
+        inventor: inventor.clone(),
+        filing_date: json["filing_date"].as_str().unwrap_or("").to_string(),
+        publication_date: json["publication_date"].as_str().unwrap_or("").to_string(),
+        grant_date: json["grant_date"].as_str().map(|s| s.to_string()),
+        ipc_codes: String::new(),
+        cpc_codes: String::new(),
+        priority_date: json["priority_date"].as_str().unwrap_or("").to_string(),
+        country: country.clone(),
+        kind_code: String::new(),
+        family_id: None,
+        legal_status: String::new(),
+        citations: "[]".into(),
+        cited_by: "[]".into(),
+        source: "serpapi_exact".into(),
+        raw_json: body,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        images: "[]".into(),
+        pdf_url: json["pdf"].as_str().unwrap_or("").to_string(),
+    };
+
+    // Cache to local DB
+    let _ = state.db.insert_patent(&patent);
+
+    let summary = PatentSummary {
+        id: patent.id.clone(),
+        patent_number: patent.patent_number.clone(),
+        title: patent.title.clone(),
+        abstract_text: patent.abstract_text.clone(),
+        applicant: patent.applicant.clone(),
+        inventor: patent.inventor.clone(),
+        filing_date: patent.filing_date.clone(),
+        country,
+        relevance_score: Some(100.0),
+        score_source: Some("exact_lookup".to_string()),
+    };
+
+    println!("[EXACT] Found patent: {} — {}", summary.patent_number, summary.title);
+    Some(serde_json::json!({
+        "patents": [summary],
+        "total": 1,
+        "page": 1,
+        "page_size": 10,
+        "source": "serpapi_exact"
+    }))
 }
