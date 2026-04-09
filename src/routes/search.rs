@@ -217,7 +217,8 @@ pub async fn api_search_online(
         "[ONLINE] query='{}' page={} country={:?} region={:?}",
         req.query, req.page, req.country, req.region
     );
-    let online_search_type = parse_search_type(req.search_type.as_deref());
+    let online_search_type = parse_search_type(req.search_type.as_deref())
+        .or_else(|| Some(s.db.detect_search_type(&req.query)));
 
     // 搜索区域判定：用户明确选择 > 自动检测
     let query_trimmed = req.query.trim();
@@ -1436,9 +1437,18 @@ pub async fn search_cnipr(
         } else {
             pub_number.clone()
         };
+        // 申请号同时搜有点和无点格式（CNIPR可能用任一格式存储）
+        let app_with_dot = query.trim().to_string();
+        let app_no_dot = app_number.clone();
+        // 只有当原始输入和纯数字不同（即原始有点）时才加两种格式
+        let app_conditions = if app_with_dot != app_no_dot {
+            format!("申请号='{}' OR 申请号='{}'", app_with_dot, app_no_dot)
+        } else {
+            format!("申请号='{}'", app_no_dot)
+        };
         format!(
-            "公开（公告）号='{}' OR 公开（公告）号='{}' OR 申请号='{}'",
-            pub_number, cn_number, app_number
+            "公开（公告）号='{}' OR 公开（公告）号='{}' OR {}",
+            pub_number, cn_number, app_conditions
         )
     } else {
         format!("名称+摘要=({})", query)
