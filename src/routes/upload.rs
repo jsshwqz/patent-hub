@@ -3,6 +3,65 @@ use axum::{extract::State, Json};
 use serde_json::json;
 
 const MAX_FILE_SIZE: usize = 10 * 1024 * 1024; // 10 MB
+const MAX_PDF_STORE_SIZE: usize = 20 * 1024 * 1024; // 20 MB
+
+/// POST /api/upload/pdf-store — 上传 PDF 文件并存储，返回可预览的 URL
+pub async fn api_upload_pdf_store(
+    _state: State<AppState>,
+    mut multipart: axum::extract::Multipart,
+) -> Json<serde_json::Value> {
+    let mut file_bytes: Vec<u8> = Vec::new();
+    let mut file_name = String::new();
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field.name().unwrap_or("").to_string();
+        if name == "file" {
+            file_name = field.file_name().unwrap_or("unknown.pdf").to_lowercase();
+            match field.bytes().await {
+                Ok(data) => {
+                    if data.len() > MAX_PDF_STORE_SIZE {
+                        return Json(json!({"status": "error", "message": "文件大小超过 20MB 限制"}));
+                    }
+                    file_bytes = data.to_vec();
+                }
+                Err(_) => return Json(json!({"status": "error", "message": "文件读取失败"})),
+            }
+        }
+    }
+
+    if file_bytes.is_empty() {
+        return Json(json!({"status": "error", "message": "缺少文件"}));
+    }
+
+    // 仅允许 PDF 文件
+    let ext = file_name.rsplit('.').next().unwrap_or("").to_lowercase();
+    if ext != "pdf" {
+        return Json(json!({"status": "error", "message": "仅支持 PDF 文件"}));
+    }
+
+    // 确保上传目录存在
+    let upload_dir = "data/uploads";
+    if let Err(e) = std::fs::create_dir_all(upload_dir) {
+        return Json(json!({"status": "error", "message": format!("创建上传目录失败: {}", e)}));
+    }
+
+    // 用 UUID 命名文件
+    let uuid = uuid::Uuid::new_v4().to_string();
+    let filename = format!("{}.pdf", uuid);
+    let filepath = format!("{}/{}", upload_dir, filename);
+
+    if let Err(e) = std::fs::write(&filepath, &file_bytes) {
+        return Json(json!({"status": "error", "message": format!("保存文件失败: {}", e)}));
+    }
+
+    let url = format!("/uploads/{}", filename);
+    Json(json!({
+        "status": "ok",
+        "url": url,
+        "filename": filename,
+        "size": file_bytes.len(),
+    }))
+}
 
 pub async fn api_upload_compare(
     State(s): State<AppState>,

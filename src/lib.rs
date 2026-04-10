@@ -32,6 +32,7 @@ use rust_embed::Embed;
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 #[derive(Embed)]
@@ -73,6 +74,9 @@ pub async fn start_server(db_path: &str) -> anyhow::Result<()> {
         config: Arc::new(RwLock::new(config)),
         pipeline_channels: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     };
+
+    // 创建上传目录 / Create uploads directory
+    let _ = std::fs::create_dir_all("data/uploads");
 
     // 启动管道通道超时清理
     state.spawn_channel_cleaner();
@@ -204,9 +208,12 @@ pub async fn start_server(db_path: &str) -> anyhow::Result<()> {
         .route("/api/tags", get(routes::api_list_all_tags))
         .route("/api/upload/compare", post(routes::api_upload_compare))
         .route("/api/upload/extract", post(routes::api_upload_extract))
+        .route("/api/upload/pdf-store", post(routes::api_upload_pdf_store))
+        // 上传文件静态服务（PDF 预览等）/ Serve uploaded files
+        .nest_service("/uploads", ServeDir::new("data/uploads"))
         // Serve embedded static files
         .route("/static/*path", get(serve_static_embedded))
-        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
+        .layer(DefaultBodyLimit::max(20 * 1024 * 1024))
         .layer(CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)

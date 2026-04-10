@@ -26,6 +26,7 @@ use rust_embed::Embed;
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 #[derive(Embed)]
@@ -83,6 +84,9 @@ async fn main() -> anyhow::Result<()> {
         config: Arc::new(RwLock::new(config)),
         pipeline_channels: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     };
+
+    // 创建上传目录 / Create uploads directory
+    let _ = std::fs::create_dir_all("data/uploads");
 
     // 启动管道通道超时清理（每 60s 检查，5 分钟未完成的自动移除）
     state.spawn_channel_cleaner();
@@ -228,11 +232,14 @@ async fn main() -> anyhow::Result<()> {
         // 文件上传 / File upload
         .route("/api/upload/compare", post(routes::api_upload_compare))
         .route("/api/upload/extract", post(routes::api_upload_extract))
+        .route("/api/upload/pdf-store", post(routes::api_upload_pdf_store))
+        // 上传文件静态服务（PDF 预览等）/ Serve uploaded files (PDF preview etc.)
+        .nest_service("/uploads", ServeDir::new("data/uploads"))
         // 静态资源（内嵌二进制）/ Static files (embedded in binary)
         .route("/static/*path", get(serve_static))
         // 备用前端路径（桌面端已拆到独立仓库 innoforge-desktop）
-        // 请求体大小限制（10MB）/ Body size limit (10MB)
-        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
+        // 请求体大小限制（20MB，支持 PDF 上传）/ Body size limit (20MB for PDF upload)
+        .layer(DefaultBodyLimit::max(20 * 1024 * 1024))
         // 跨域支持（MCP 客户端等需要）/ CORS for MCP clients and external frontends
         .layer(CorsLayer::new()
             .allow_origin(Any)

@@ -216,6 +216,23 @@ impl AppState {
                     Ok(_) => {}
                     Err(e) => tracing::error!("自动恢复检查失败: {}", e),
                 }
+
+                // 清理超过 24 小时的上传文件
+                if let Ok(entries) = std::fs::read_dir("data/uploads") {
+                    let threshold = std::time::Duration::from_secs(24 * 3600);
+                    for entry in entries.flatten() {
+                        if let Ok(meta) = entry.metadata() {
+                            let age = meta.modified()
+                                .ok()
+                                .and_then(|t| t.elapsed().ok())
+                                .unwrap_or_default();
+                            if age > threshold {
+                                let _ = std::fs::remove_file(entry.path());
+                                tracing::info!("清理过期上传文件: {:?}", entry.file_name());
+                            }
+                        }
+                    }
+                }
             }
         });
     }
