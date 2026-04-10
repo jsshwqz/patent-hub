@@ -104,7 +104,7 @@
 
         <!-- Reference Documents -->
         <div class="cmp-section cmp-ref">
-            <label class="cmp-label" style="color:#58a6ff; font-weight:600;">对比文件 <span class="ref-counter" id="ref-counter">1 / 5</span></label>
+            <label class="cmp-label" style="color:#58a6ff; font-weight:600;">对比文件 <span class="ref-counter" id="ref-counter">1 篇</span></label>
             <div id="ref-list">
                 <div class="ref-row" data-idx="0">
                     <input type="text" class="cmp-input ref-input" placeholder="对比文件 1 — 专利号或 ID">
@@ -201,7 +201,7 @@
         if (file) uploadAndPreviewPdf(file);
     }
 
-    var MAX_REFS = 5;
+    var MAX_REFS = 999;
     // Store uploaded text data: { title, content } keyed by row index or "my"
     var uploadedData = {};
     var refIdxCounter = 0;
@@ -308,7 +308,7 @@
     function addRef() {
         var list = document.getElementById('ref-list');
         var count = list.querySelectorAll('.ref-row').length;
-        if (count >= MAX_REFS) { alert('最多添加 ' + MAX_REFS + ' 个对比文件'); return; }
+        // 不限制对比文件数量
         refIdxCounter++;
         var row = document.createElement('div');
         row.className = 'ref-row';
@@ -337,13 +337,13 @@
     }
 
     function updateAddBtn() {
-        var count = document.getElementById('ref-list').querySelectorAll('.ref-row').length;
-        document.getElementById('btn-add-ref').style.display = count >= MAX_REFS ? 'none' : '';
+        // 始终显示添加按钮，不限制数量
+        document.getElementById('btn-add-ref').style.display = '';
     }
 
     function updateRefCounter() {
         var count = document.getElementById('ref-list').querySelectorAll('.ref-row').length;
-        document.getElementById('ref-counter').textContent = count + ' / ' + MAX_REFS;
+        document.getElementById('ref-counter').textContent = count + ' 篇';
     }
 
     function reindexPlaceholders() {
