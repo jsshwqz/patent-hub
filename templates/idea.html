@@ -12,6 +12,7 @@
     <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <style>
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
         .idea-layout { display: grid; grid-template-columns: 280px 1fr; gap: 0; height: 100vh; }
         .idea-sidebar { background: #161b22; border-right: 1px solid #30363d; padding: 20px; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
         .idea-main { padding: 24px; max-width: 900px; overflow-y: auto; }
@@ -1360,7 +1361,19 @@
 
                 var titleDiv = document.createElement('div');
                 titleDiv.className = 'history-title';
-                titleDiv.textContent = idea.title;
+                titleDiv.style.display = 'flex';
+                titleDiv.style.alignItems = 'center';
+                titleDiv.style.gap = '6px';
+                var statusDot = document.createElement('span');
+                var st = idea.status || '';
+                var dotColor = st === 'completed' ? '#3fb950' : st === 'analyzing' ? '#d29922' : st === 'failed' ? '#f85149' : '#8b949e';
+                statusDot.style.cssText = 'width:7px;height:7px;border-radius:50%;flex-shrink:0;background:' + dotColor;
+                if (st === 'analyzing') statusDot.style.animation = 'pulse 1.5s infinite';
+                titleDiv.appendChild(statusDot);
+                var titleText = document.createElement('span');
+                titleText.textContent = idea.title;
+                titleText.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                titleDiv.appendChild(titleText);
                 clickDiv.appendChild(titleDiv);
 
                 if (snippet) {
