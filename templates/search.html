@@ -185,6 +185,7 @@ let lastPageSize = 20;
     'results.score': '相关性评分',
     'alert.emptyQuery': '请输入搜索内容',
     'alert.searchFirst': '请先执行一次搜索',
+    'alert.searchFail': '搜索失败',
     'alert.statsFail': '统计失败',
     'alert.exportFail': '导出失败',
     'page.prev': '上一页',
@@ -235,6 +236,7 @@ let lastPageSize = 20;
     'results.score': 'Relevance',
     'alert.emptyQuery': 'Please enter a query',
     'alert.searchFirst': 'Please run a search first',
+    'alert.searchFail': 'Search failed',
     'alert.statsFail': 'Stats failed',
     'alert.exportFail': 'Export failed',
     'page.prev': 'Prev',
@@ -345,7 +347,7 @@ async function doSearch(page) {
         renderResults(data, page, body.page_size);
     } catch (err) {
         document.getElementById('results').innerHTML =
-            `<p style="color:#f85149;">${escapeHtml(t('alert.exportFail'))}: ${escapeHtml(err.message)}</p>`;
+            `<p style="color:#f85149;">${escapeHtml(t('alert.searchFail'))}: ${escapeHtml(err.message)}</p>`;
     }
 }
 

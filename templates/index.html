@@ -183,6 +183,12 @@
             </div>
         </div>
 
+        <!-- 最近项目 -->
+        <div id="recent-ideas" style="max-width:700px;margin:0 auto 30px;padding:0 20px;display:none;">
+            <h3 style="color:#c9d1d9;font-size:0.95em;margin-bottom:10px;">最近项目</h3>
+            <div id="recent-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+
         <!-- 快速抓取（折叠，不抢焦点） -->
         <div class="quick-fetch">
             <details>
@@ -201,7 +207,7 @@
     </main>
 
     <footer style="text-align:center;padding:20px;color:#484f58;font-size:0.75em;">
-        v0.5.0 · <a href="https://github.com/jsshwqz/innoforge" target="_blank" rel="noopener" style="color:#484f58;">GitHub</a> · <a href="https://gitee.com/jsshwqz/innoforge" target="_blank" rel="noopener" style="color:#484f58;">Gitee</a> · MIT License
+        v0.5.3 · <a href="https://github.com/jsshwqz/innoforge" target="_blank" rel="noopener" style="color:#484f58;">GitHub</a> · <a href="https://gitee.com/jsshwqz/innoforge" target="_blank" rel="noopener" style="color:#484f58;">Gitee</a> · MIT License
     </footer>
     </main>
     <aside id="page-sidebar" class="page-sidebar"></aside>
@@ -402,6 +408,47 @@
                 searchEl.style.color = '#8b949e';
             }
         } catch(e) {}
+    })();
+
+    // 加载最近项目
+    (async function loadRecentIdeas() {
+        try {
+            var resp = await fetch('/api/idea/list');
+            if (!resp.ok) return;
+            var data = await resp.json();
+            var ideas = (data.ideas || data || []).slice(0, 5);
+            if (ideas.length === 0) return;
+            var container = document.getElementById('recent-ideas');
+            var list = document.getElementById('recent-list');
+            container.style.display = 'block';
+            ideas.forEach(function(idea) {
+                var a = document.createElement('a');
+                a.href = '/idea?id=' + idea.id;
+                a.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#161b22;border:1px solid #21262d;border-radius:8px;padding:10px 14px;text-decoration:none;color:#c9d1d9;font-size:0.9em;transition:border-color 0.2s;';
+                a.onmouseenter = function() { a.style.borderColor = '#58a6ff'; };
+                a.onmouseleave = function() { a.style.borderColor = '#21262d'; };
+                var left = document.createElement('div');
+                left.style.cssText = 'display:flex;align-items:center;gap:8px;overflow:hidden;';
+                var statusDot = document.createElement('span');
+                var s = idea.status || '';
+                var dotColor = s === 'completed' ? '#3fb950' : s === 'analyzing' ? '#d29922' : s === 'failed' ? '#f85149' : '#8b949e';
+                statusDot.style.cssText = 'width:8px;height:8px;border-radius:50%;flex-shrink:0;background:' + dotColor;
+                var title = document.createElement('span');
+                title.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                title.textContent = idea.title || '无标题';
+                left.appendChild(statusDot);
+                left.appendChild(title);
+                var time = document.createElement('span');
+                time.style.cssText = 'color:#484f58;font-size:0.85em;flex-shrink:0;margin-left:12px;';
+                if (idea.created_at) {
+                    var d = new Date(idea.created_at);
+                    time.textContent = d.toLocaleDateString();
+                }
+                a.appendChild(left);
+                a.appendChild(time);
+                list.appendChild(a);
+            });
+        } catch(e) { console.error('加载最近项目失败', e); }
     })();
 
     // 快速抓取

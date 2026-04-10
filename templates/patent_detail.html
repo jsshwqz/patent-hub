@@ -384,6 +384,7 @@
         const patentId = window.location.pathname.split('/').pop();
         try {
             const res = await fetch('/api/patent/similar/' + patentId);
+            if (!res.ok) throw new Error('服务器错误 (' + res.status + ')');
             const data = await res.json();
             if (data.similar && data.similar.length > 0) {
                 let html = '';
@@ -420,6 +421,7 @@
         uploadResultEl.appendChild(analyzingP);
         try {
             const res = await fetch('/api/upload/compare', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('服务器错误 (' + res.status + ')');
             const data = await res.json();
             if (data.success) {
                 var resultDiv = document.createElement('div');
@@ -457,6 +459,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({patent_id: '{{id}}'})
             });
+            if (!resp.ok) throw new Error('服务器错误 (' + resp.status + ')');
             var data = await resp.json();
             if (data.status === 'ok') {
                 result.innerHTML = DOMPurify.sanitize('<h3 style="color:#58a6ff;margin:0 0 12px;">🔍 权利要求分析</h3><div style="color:#c9d1d9;line-height:1.8;white-space:pre-wrap;">' + escapeHtml(data.analysis).replace(/\n/g, '<br>') + '</div>');

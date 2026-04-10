@@ -48,11 +48,16 @@
     document.getElementById('chat-msg').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') sendChat();
     });
+    var chatSending = false;
     async function sendChat() {
         var input = document.getElementById('chat-msg');
+        var sendBtn = input.parentElement.querySelector('button');
         var msg = input.value.trim();
-        if (!msg) return;
+        if (!msg || chatSending) return;
+        chatSending = true;
         input.value = '';
+        input.disabled = true;
+        if (sendBtn) sendBtn.disabled = true;
         var box = document.getElementById('chat-messages');
         var userDiv = document.createElement('div');
         userDiv.className = 'msg user';
@@ -71,15 +76,20 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ message: msg, history: chatHistory, web_search: document.getElementById('web-search-cb').checked })
             });
+            if (!resp.ok) throw new Error('服务器错误 (' + resp.status + ')');
             var data = await resp.json();
             document.getElementById(loadingId).innerHTML = DOMPurify.sanitize(escapeHtml(data.content).replace(/\n/g, '<br>'));
             chatHistory.push(["user", msg]);
             chatHistory.push(["assistant", data.content]);
         } catch(e) {
             var el = document.getElementById(loadingId);
-            el.textContent = t('ai.fail') + ': ' + e;
+            el.textContent = t('ai.fail') + ': ' + e.message;
             el.classList.add('error');
         }
+        chatSending = false;
+        input.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        input.focus();
         box.scrollTop = box.scrollHeight;
     }
     applyI18nCommon();
