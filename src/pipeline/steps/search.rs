@@ -10,8 +10,8 @@ use crate::db::Database;
 use crate::pipeline::context::{PipelineContext, SearchResult};
 use anyhow::Result;
 use reqwest::Client;
-use std::collections::HashSet;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
 /// 计算查询哈希（用于缓存键）/ Compute query hash for cache key

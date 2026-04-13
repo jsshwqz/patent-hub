@@ -196,10 +196,7 @@ pub async fn api_feature_card_diff(
 /// 计算两张卡片的最小差异 / Compute minimal diff between two cards
 ///
 /// 使用字符级 LCS 定位差异段落，返回结构化差异列表
-fn compute_minimal_diff(
-    a: &FeatureCard,
-    b: &FeatureCard,
-) -> serde_json::Value {
+fn compute_minimal_diff(a: &FeatureCard, b: &FeatureCard) -> serde_json::Value {
     let title_diff = diff_strings(&a.title, &b.title);
     let desc_diff = diff_strings(&a.description, &b.description);
     let score_diff = match (a.novelty_score, b.novelty_score) {

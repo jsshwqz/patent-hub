@@ -6,10 +6,7 @@ use crate::pipeline::context::PipelineContext;
 use anyhow::Result;
 
 /// 根据创意描述和分析结果，AI 生成验证脚本
-pub async fn generate_experiment(
-    ctx: &PipelineContext,
-    ai: &AiClient,
-) -> Result<ExperimentSpec> {
+pub async fn generate_experiment(ctx: &PipelineContext, ai: &AiClient) -> Result<ExperimentSpec> {
     let prompt = format!(
         "你是一名研发工程师。根据以下创意和分析结果，生成一个 Python 验证脚本。\n\
          \n\

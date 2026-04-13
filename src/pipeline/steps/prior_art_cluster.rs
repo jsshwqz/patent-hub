@@ -113,7 +113,13 @@ mod tests {
     use super::*;
     use crate::pipeline::context::{PipelineContext, RankedMatch};
 
-    fn make_match(rank: usize, title: &str, snippet: &str, tokens: Vec<&str>, score: f64) -> RankedMatch {
+    fn make_match(
+        rank: usize,
+        title: &str,
+        snippet: &str,
+        tokens: Vec<&str>,
+        score: f64,
+    ) -> RankedMatch {
         RankedMatch {
             rank,
             source_id: format!("id{}", rank),
@@ -136,12 +142,50 @@ mod tests {
     async fn test_clustering_groups_similar_items() {
         // Two items with overlapping tokens should cluster together
         let matches = vec![
-            make_match(1, "Neural network image recognition", "deep learning CNN",
-                       vec!["neural", "network", "image", "recognition", "deep", "learning", "cnn"], 0.8),
-            make_match(2, "Deep learning image classification", "convolutional neural net",
-                       vec!["deep", "learning", "image", "classification", "convolutional", "neural", "net"], 0.75),
-            make_match(3, "Blockchain supply chain tracking", "distributed ledger",
-                       vec!["blockchain", "supply", "chain", "tracking", "distributed", "ledger"], 0.6),
+            make_match(
+                1,
+                "Neural network image recognition",
+                "deep learning CNN",
+                vec![
+                    "neural",
+                    "network",
+                    "image",
+                    "recognition",
+                    "deep",
+                    "learning",
+                    "cnn",
+                ],
+                0.8,
+            ),
+            make_match(
+                2,
+                "Deep learning image classification",
+                "convolutional neural net",
+                vec![
+                    "deep",
+                    "learning",
+                    "image",
+                    "classification",
+                    "convolutional",
+                    "neural",
+                    "net",
+                ],
+                0.75,
+            ),
+            make_match(
+                3,
+                "Blockchain supply chain tracking",
+                "distributed ledger",
+                vec![
+                    "blockchain",
+                    "supply",
+                    "chain",
+                    "tracking",
+                    "distributed",
+                    "ledger",
+                ],
+                0.6,
+            ),
         ];
         let mut ctx = make_ctx(matches);
         execute(&mut ctx).await.unwrap();
@@ -168,10 +212,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_single_item() {
-        let matches = vec![
-            make_match(1, "Quantum computing error correction", "qubit stabilization",
-                       vec!["quantum", "computing", "error", "correction"], 0.9),
-        ];
+        let matches = vec![make_match(
+            1,
+            "Quantum computing error correction",
+            "qubit stabilization",
+            vec!["quantum", "computing", "error", "correction"],
+            0.9,
+        )];
         let mut ctx = make_ctx(matches);
         execute(&mut ctx).await.unwrap();
 
@@ -197,10 +244,20 @@ mod tests {
     #[tokio::test]
     async fn test_topic_derivation() {
         let matches = vec![
-            make_match(1, "专利分析系统", "自然语言处理",
-                       vec!["专利", "分析", "系统", "自然语言", "处理"], 0.7),
-            make_match(2, "专利检索与分析平台", "文本挖掘",
-                       vec!["专利", "检索", "分析", "平台", "文本", "挖掘"], 0.65),
+            make_match(
+                1,
+                "专利分析系统",
+                "自然语言处理",
+                vec!["专利", "分析", "系统", "自然语言", "处理"],
+                0.7,
+            ),
+            make_match(
+                2,
+                "专利检索与分析平台",
+                "文本挖掘",
+                vec!["专利", "检索", "分析", "平台", "文本", "挖掘"],
+                0.65,
+            ),
         ];
         let mut ctx = make_ctx(matches);
         execute(&mut ctx).await.unwrap();
@@ -216,14 +273,29 @@ mod tests {
     async fn test_chinese_text_clustering() {
         // Items with significant Chinese token overlap should cluster
         let matches = vec![
-            make_match(1, "智能停车系统", "自动泊车",
-                       vec!["智能", "停车", "系统", "自动", "泊车"], 0.8),
-            make_match(2, "智能停车场管理", "车位检测",
-                       vec!["智能", "停车", "场", "管理", "车位", "检测"], 0.75),
+            make_match(
+                1,
+                "智能停车系统",
+                "自动泊车",
+                vec!["智能", "停车", "系统", "自动", "泊车"],
+                0.8,
+            ),
+            make_match(
+                2,
+                "智能停车场管理",
+                "车位检测",
+                vec!["智能", "停车", "场", "管理", "车位", "检测"],
+                0.75,
+            ),
             // Jaccard("智能","停车" shared) = 2/9 ≈ 0.22 — below 0.25, separate clusters
             // Let's add more overlap to ensure clustering:
-            make_match(3, "自动泊车辅助系统", "智能停车",
-                       vec!["自动", "泊车", "辅助", "系统", "智能", "停车"], 0.7),
+            make_match(
+                3,
+                "自动泊车辅助系统",
+                "智能停车",
+                vec!["自动", "泊车", "辅助", "系统", "智能", "停车"],
+                0.7,
+            ),
         ];
         // match 1 tokens: {智能, 停车, 系统, 自动, 泊车} (5)
         // match 3 tokens: {自动, 泊车, 辅助, 系统, 智能, 停车} (6)

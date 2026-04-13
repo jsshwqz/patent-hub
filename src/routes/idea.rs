@@ -240,7 +240,9 @@ pub async fn api_idea_evidence(
     Path(idea_id): Path<String>,
 ) -> Json<serde_json::Value> {
     match s.db.get_evidence_by_idea(&idea_id) {
-        Ok(evidences) => Json(json!({"status": "ok", "evidence": evidences, "count": evidences.len()})),
+        Ok(evidences) => {
+            Json(json!({"status": "ok", "evidence": evidences, "count": evidences.len()}))
+        }
         Err(e) => Json(json!({"status": "error", "message": e.to_string()})),
     }
 }
@@ -293,11 +295,18 @@ pub async fn api_idea_chat(
                  保留所有关键技术结论、决策和未解决的问题：\n\n{}",
                 idea.title, conv_text
             );
-            let ai_tmp = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+            let ai_tmp = s
+                .config
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .ai_client();
             if let Ok(compressed) = ai_tmp.chat(&compress_prompt, None).await {
                 let _ = s.db.update_idea_summary(&idea_id, &compressed);
                 summary = compressed;
-                tracing::info!("[CHAT] Auto-compressed {} old messages into summary", old_count);
+                tracing::info!(
+                    "[CHAT] Auto-compressed {} old messages into summary",
+                    old_count
+                );
             }
         }
     }
@@ -316,16 +325,25 @@ pub async fn api_idea_chat(
     // Add analysis results if available
     if !idea.analysis.is_empty() {
         // 只提取分析中的关键结论段落，不灌水
-        let analysis_lines: Vec<&str> = idea.analysis.lines()
+        let analysis_lines: Vec<&str> = idea
+            .analysis
+            .lines()
             .filter(|l| {
                 let t = l.trim();
                 // 保留：标题行、评分行、结论行、风险行；跳过：空行、纯装饰、过长描述
-                !t.is_empty() && (
-                    t.starts_with('#') || t.starts_with('*') || t.starts_with('-') ||
-                    t.contains("评分") || t.contains("结论") || t.contains("风险") ||
-                    t.contains("建议") || t.contains("差异") || t.contains("创新") ||
-                    t.contains("score") || t.contains("novel") || t.contains("risk")
-                )
+                !t.is_empty()
+                    && (t.starts_with('#')
+                        || t.starts_with('*')
+                        || t.starts_with('-')
+                        || t.contains("评分")
+                        || t.contains("结论")
+                        || t.contains("风险")
+                        || t.contains("建议")
+                        || t.contains("差异")
+                        || t.contains("创新")
+                        || t.contains("score")
+                        || t.contains("novel")
+                        || t.contains("risk"))
             })
             .take(30) // 最多 30 行关键内容
             .collect();
@@ -390,8 +408,15 @@ pub async fn api_idea_chat(
     }
 
     // Call AI with full message history (preserves multi-turn context)
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
-    let ai_response = match ai.chat_with_history(&system_context, chat_history, 0.7).await {
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
+    let ai_response = match ai
+        .chat_with_history(&system_context, chat_history, 0.7)
+        .await
+    {
         Ok(content) => content,
         Err(e) => {
             return Json(json!({"error": format!("AI 响应失败: {}", e)}));
@@ -457,11 +482,17 @@ pub async fn api_idea_pipeline(
     // 创建进度广播通道 / Create broadcast channel for progress
     let (tx, _) = tokio::sync::broadcast::channel::<PipelineProgress>(64);
     {
-        let mut channels = s.pipeline_channels.lock().unwrap_or_else(|e| e.into_inner());
-        channels.insert(id.to_string(), super::PipelineChannelEntry {
-            sender: tx.clone(),
-            created_at: std::time::Instant::now(),
-        });
+        let mut channels = s
+            .pipeline_channels
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        channels.insert(
+            id.to_string(),
+            super::PipelineChannelEntry {
+                sender: tx.clone(),
+                created_at: std::time::Instant::now(),
+            },
+        );
     }
 
     // Build runner from config
@@ -703,7 +734,9 @@ pub async fn api_idea_report(
         match s.db.get_idea_versions(&idea_id) {
             Ok(versions) => {
                 if let Some(ver) = versions.iter().find(|v| v.id == *vid) {
-                    if let Ok(ctx) = serde_json::from_str::<crate::pipeline::context::PipelineContext>(&ver.context_json) {
+                    if let Ok(ctx) = serde_json::from_str::<crate::pipeline::context::PipelineContext>(
+                        &ver.context_json,
+                    ) {
                         (ctx.novelty_score, ctx.ai_analysis)
                     } else {
                         (idea.novelty_score.unwrap_or(0.0), idea.analysis.clone())
@@ -718,12 +751,24 @@ pub async fn api_idea_report(
         (idea.novelty_score.unwrap_or(0.0), idea.analysis.clone())
     };
 
-    let level = if score >= 70.0 { "高新颖性" } else if score >= 40.0 { "中等新颖性" } else { "低新颖性" };
+    let level = if score >= 70.0 {
+        "高新颖性"
+    } else if score >= 40.0 {
+        "中等新颖性"
+    } else {
+        "低新颖性"
+    };
 
     match report_type {
         "executive" => {
             // 领导版：1 页精简报告
-            let risk = if score >= 70.0 { "低" } else if score >= 40.0 { "中" } else { "高" };
+            let risk = if score >= 70.0 {
+                "低"
+            } else if score >= 40.0 {
+                "中"
+            } else {
+                "高"
+            };
             let conclusion = if score >= 70.0 {
                 "该创意具有较高新颖性，建议推进专利申请"
             } else if score >= 40.0 {
@@ -751,8 +796,10 @@ pub async fn api_idea_report(
         }
         "technical" => {
             // 研发版：详细技术报告
-            let web_results = serde_json::from_str::<serde_json::Value>(&idea.web_results).unwrap_or_default();
-            let patent_results = serde_json::from_str::<serde_json::Value>(&idea.patent_results).unwrap_or_default();
+            let web_results =
+                serde_json::from_str::<serde_json::Value>(&idea.web_results).unwrap_or_default();
+            let patent_results =
+                serde_json::from_str::<serde_json::Value>(&idea.patent_results).unwrap_or_default();
             let report_md = format!(
                 "# 技术验证报告\n\n\
                  ## 创意概述\n\
@@ -813,10 +860,7 @@ pub async fn api_idea_report_html(
         }
     };
 
-    let feature_cards = s
-        .db
-        .get_feature_cards_by_idea(&idea_id)
-        .unwrap_or_default();
+    let feature_cards = s.db.get_feature_cards_by_idea(&idea_id).unwrap_or_default();
 
     let cards_html: String = if feature_cards.is_empty() {
         "<p>暂无特征卡片</p>".to_string()
@@ -944,7 +988,10 @@ fn simple_md_to_html(md: &str) -> String {
         // Table rows
         if trimmed.starts_with('|') && trimmed.ends_with('|') {
             // Separator row (|---|---|)
-            if trimmed.chars().all(|c| c == '|' || c == '-' || c == ':' || c == ' ') {
+            if trimmed
+                .chars()
+                .all(|c| c == '|' || c == '-' || c == ':' || c == ' ')
+            {
                 if !in_table {
                     in_table = true;
                     table_header_done = false;
@@ -957,11 +1004,13 @@ fn simple_md_to_html(md: &str) -> String {
                 in_table = true;
                 table_header_done = false;
             }
-            let cells: Vec<&str> = trimmed.split('|')
-                .filter(|c| !c.is_empty())
-                .collect();
+            let cells: Vec<&str> = trimmed.split('|').filter(|c| !c.is_empty()).collect();
             let tag = if !table_header_done { "th" } else { "td" };
-            let bg = if !table_header_done { "background:#eff6ff;" } else { "" };
+            let bg = if !table_header_done {
+                "background:#eff6ff;"
+            } else {
+                ""
+            };
             out.push_str("<tr>");
             for cell in cells {
                 out.push_str(&format!(
@@ -970,7 +1019,9 @@ fn simple_md_to_html(md: &str) -> String {
                 ));
             }
             out.push_str("</tr>");
-            if !table_header_done { table_header_done = true; }
+            if !table_header_done {
+                table_header_done = true;
+            }
             continue;
         }
 
@@ -984,20 +1035,41 @@ fn simple_md_to_html(md: &str) -> String {
         if trimmed.is_empty() {
             out.push_str("<br>");
         } else if let Some(h) = trimmed.strip_prefix("### ") {
-            out.push_str(&format!("<h3 style='color:#1e40af;margin:16px 0 8px;'>{}</h3>", html_escape(h)));
+            out.push_str(&format!(
+                "<h3 style='color:#1e40af;margin:16px 0 8px;'>{}</h3>",
+                html_escape(h)
+            ));
         } else if let Some(h) = trimmed.strip_prefix("## ") {
-            out.push_str(&format!("<h2 style='color:#1e40af;margin:20px 0 8px;'>{}</h2>", html_escape(h)));
+            out.push_str(&format!(
+                "<h2 style='color:#1e40af;margin:20px 0 8px;'>{}</h2>",
+                html_escape(h)
+            ));
         } else if let Some(h) = trimmed.strip_prefix("# ") {
-            out.push_str(&format!("<h1 style='color:#1e40af;'>{}</h1>", html_escape(h)));
+            out.push_str(&format!(
+                "<h1 style='color:#1e40af;'>{}</h1>",
+                html_escape(h)
+            ));
         } else if let Some(item) = trimmed.strip_prefix("- ") {
-            out.push_str(&format!("<li style='margin:4px 0;'>{}</li>", inline_md(&html_escape(item))));
-        } else if trimmed.starts_with("1. ") || trimmed.starts_with("2. ") || trimmed.starts_with("3. ") {
+            out.push_str(&format!(
+                "<li style='margin:4px 0;'>{}</li>",
+                inline_md(&html_escape(item))
+            ));
+        } else if trimmed.starts_with("1. ")
+            || trimmed.starts_with("2. ")
+            || trimmed.starts_with("3. ")
+        {
             if let Some(pos) = trimmed.find(". ") {
                 let item = &trimmed[pos + 2..];
-                out.push_str(&format!("<li style='margin:4px 0;'>{}</li>", inline_md(&html_escape(item))));
+                out.push_str(&format!(
+                    "<li style='margin:4px 0;'>{}</li>",
+                    inline_md(&html_escape(item))
+                ));
             }
         } else {
-            out.push_str(&format!("<p style='margin:6px 0;'>{}</p>", inline_md(&html_escape(trimmed))));
+            out.push_str(&format!(
+                "<p style='margin:6px 0;'>{}</p>",
+                inline_md(&html_escape(trimmed))
+            ));
         }
     }
 
@@ -1019,7 +1091,10 @@ fn inline_md(s: &str) -> String {
     let s = re_italic.replace_all(&s, "<em>$1</em>");
     // Inline code
     let re_code = regex::Regex::new(r"`([^`]+)`").unwrap();
-    let s = re_code.replace_all(&s, "<code style='background:#f3f4f6;padding:1px 4px;border-radius:3px;'>$1</code>");
+    let s = re_code.replace_all(
+        &s,
+        "<code style='background:#f3f4f6;padding:1px 4px;border-radius:3px;'>$1</code>",
+    );
     s.into_owned()
 }
 
@@ -1059,7 +1134,11 @@ pub async fn api_idea_summarize_discussion(
         conversation.chars().take(4000).collect::<String>()
     );
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match ai.chat(&prompt, None).await {
         Ok(summary) => {
             // Save summary to DB
@@ -1079,7 +1158,10 @@ pub async fn api_ideas_batch_compare(
     Json(req): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
     let ids: Vec<String> = match req["idea_ids"].as_array() {
-        Some(arr) => arr.iter().filter_map(|v| v.as_str().map(String::from)).collect(),
+        Some(arr) => arr
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect(),
         None => return Json(json!({"status": "error", "message": "缺少 idea_ids 数组"})),
     };
     if ids.len() < 2 {
@@ -1161,7 +1243,11 @@ fn jaccard_trigram(
     }
     let inter = a.intersection(b).count() as f64;
     let union = a.union(b).count() as f64;
-    if union == 0.0 { 0.0 } else { inter / union }
+    if union == 0.0 {
+        0.0
+    } else {
+        inter / union
+    }
 }
 
 // ── 版本管理 + 迭代 API / Version management + iterate API ────────────
@@ -1175,7 +1261,9 @@ pub async fn api_idea_iterate(
     let latest = match s.db.get_latest_version(&idea_id, "main") {
         Ok(Some(v)) => v,
         Ok(None) => {
-            return Json(serde_json::json!({"status": "error", "message": "无历史版本，请先运行 Pipeline"}));
+            return Json(
+                serde_json::json!({"status": "error", "message": "无历史版本，请先运行 Pipeline"}),
+            );
         }
         Err(e) => {
             return Json(serde_json::json!({"status": "error", "message": e.to_string()}));
@@ -1183,10 +1271,14 @@ pub async fn api_idea_iterate(
     };
 
     // 反序列化上一轮 context
-    let mut ctx: crate::pipeline::context::PipelineContext = match serde_json::from_str(&latest.context_json) {
+    let mut ctx: crate::pipeline::context::PipelineContext = match serde_json::from_str(
+        &latest.context_json,
+    ) {
         Ok(c) => c,
         Err(e) => {
-            return Json(serde_json::json!({"status": "error", "message": format!("快照反序列化失败: {}", e)}));
+            return Json(
+                serde_json::json!({"status": "error", "message": format!("快照反序列化失败: {}", e)}),
+            );
         }
     };
 
@@ -1196,7 +1288,9 @@ pub async fn api_idea_iterate(
 
     // 使用 open_questions 作为额外搜索种子
     if !ctx.research_state.open_questions.is_empty() {
-        let extra_queries: Vec<String> = ctx.research_state.open_questions
+        let extra_queries: Vec<String> = ctx
+            .research_state
+            .open_questions
             .iter()
             .take(3)
             .map(|q| q.chars().take(50).collect())
@@ -1225,7 +1319,11 @@ pub async fn api_idea_iterate(
     tokio::spawn(async move {
         match orch.run(ctx, None).await {
             Ok(result_ctx) => {
-                tracing::info!("Iterate completed for {} (iter={})", idea_id_clone, iteration);
+                tracing::info!(
+                    "Iterate completed for {} (iter={})",
+                    idea_id_clone,
+                    iteration
+                );
                 if let Ok(Some(mut idea)) = db.get_idea(&idea_id_clone) {
                     idea.novelty_score = Some(result_ctx.novelty_score);
                     idea.analysis = result_ctx.ai_analysis;
@@ -1259,7 +1357,7 @@ pub async fn api_idea_claim_tree(
     let conn = s.db.conn();
     let mut stmt = match conn.prepare(
         "SELECT cn.id, cn.claim_number, cn.claim_type, cn.parent_claim_id, cn.content, \
-         cn.created_at FROM claim_nodes cn WHERE cn.idea_id = ?1 ORDER BY cn.claim_number ASC"
+         cn.created_at FROM claim_nodes cn WHERE cn.idea_id = ?1 ORDER BY cn.claim_number ASC",
     ) {
         Ok(s) => s,
         Err(e) => return Json(json!({"status": "error", "message": e.to_string()})),
@@ -1283,22 +1381,27 @@ pub async fn api_idea_claim_tree(
     let mut result_claims = Vec::new();
     for claim in &claims {
         let claim_id = claim["id"].as_str().unwrap_or("");
-        let mut feat_stmt = conn.prepare(
-            "SELECT id, description, novelty_flag FROM technical_features WHERE claim_id = ?1"
-        ).unwrap();
-        let features: Vec<serde_json::Value> = match feat_stmt.query_map(rusqlite::params![claim_id], |r| {
-            Ok(json!({
-                "id": r.get::<_, String>(0)?,
-                "description": r.get::<_, String>(1)?,
-                "novelty_flag": r.get::<_, i32>(2)? != 0,
-            }))
-        }) {
-            Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
-            Err(_) => Vec::new(),
-        };
+        let mut feat_stmt = conn
+            .prepare(
+                "SELECT id, description, novelty_flag FROM technical_features WHERE claim_id = ?1",
+            )
+            .unwrap();
+        let features: Vec<serde_json::Value> =
+            match feat_stmt.query_map(rusqlite::params![claim_id], |r| {
+                Ok(json!({
+                    "id": r.get::<_, String>(0)?,
+                    "description": r.get::<_, String>(1)?,
+                    "novelty_flag": r.get::<_, i32>(2)? != 0,
+                }))
+            }) {
+                Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
+                Err(_) => Vec::new(),
+            };
 
         let mut c = claim.clone();
-        c.as_object_mut().unwrap().insert("features".to_string(), json!(features));
+        c.as_object_mut()
+            .unwrap()
+            .insert("features".to_string(), json!(features));
         result_claims.push(c);
     }
 
@@ -1314,13 +1417,15 @@ pub async fn api_idea_versions(
         Ok(versions) => {
             let summaries: Vec<serde_json::Value> = versions
                 .iter()
-                .map(|v| serde_json::json!({
-                    "id": v.id,
-                    "version_number": v.version_number,
-                    "current_step": v.current_step,
-                    "branch_id": v.branch_id,
-                    "created_at": v.created_at,
-                }))
+                .map(|v| {
+                    serde_json::json!({
+                        "id": v.id,
+                        "version_number": v.version_number,
+                        "current_step": v.current_step,
+                        "branch_id": v.branch_id,
+                        "created_at": v.created_at,
+                    })
+                })
                 .collect();
             Json(serde_json::json!({"status": "ok", "versions": summaries}))
         }

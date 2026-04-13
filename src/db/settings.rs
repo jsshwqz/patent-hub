@@ -50,12 +50,20 @@ impl super::Database {
             "SELECT results_json FROM search_cache \
              WHERE query_hash = ?1 AND expires_at > datetime('now')",
         )?;
-        let result = stmt.query_row(params![query_hash], |r| r.get::<_, String>(0)).ok();
+        let result = stmt
+            .query_row(params![query_hash], |r| r.get::<_, String>(0))
+            .ok();
         Ok(result)
     }
 
     /// 写入搜索缓存（TTL 24h）/ Write search cache with 24h TTL
-    pub fn set_search_cache(&self, query_hash: &str, query_text: &str, results_json: &str, source: &str) -> Result<()> {
+    pub fn set_search_cache(
+        &self,
+        query_hash: &str,
+        query_text: &str,
+        results_json: &str,
+        source: &str,
+    ) -> Result<()> {
         let c = self.conn();
         c.execute(
             "INSERT OR REPLACE INTO search_cache (query_hash, query_text, results_json, source, created_at, expires_at) \
@@ -68,7 +76,10 @@ impl super::Database {
     /// 清理过期缓存 / Purge expired cache entries
     pub fn purge_expired_cache(&self) -> Result<usize> {
         let c = self.conn();
-        let deleted = c.execute("DELETE FROM search_cache WHERE expires_at <= datetime('now')", [])?;
+        let deleted = c.execute(
+            "DELETE FROM search_cache WHERE expires_at <= datetime('now')",
+            [],
+        )?;
         Ok(deleted)
     }
 }

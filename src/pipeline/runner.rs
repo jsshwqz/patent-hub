@@ -27,7 +27,14 @@ impl PipelineRunner {
         lens_api_key: String,
         quick_mode: bool,
     ) -> Self {
-        Self { ai_client, db, serpapi_key, bing_api_key, lens_api_key, quick_mode }
+        Self {
+            ai_client,
+            db,
+            serpapi_key,
+            bing_api_key,
+            lens_api_key,
+            quick_mode,
+        }
     }
 
     fn make_orchestrator(&self) -> Orchestrator {

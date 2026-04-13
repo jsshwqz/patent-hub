@@ -270,7 +270,11 @@ impl AiClient {
     pub(super) const GLOBAL_TIMEOUT_SECS: u64 = 120;
 
     /// 带全局超时的 AI 调用入口
-    pub(super) async fn send_chat(&self, messages: Vec<Message>, temperature: f32) -> Result<String> {
+    pub(super) async fn send_chat(
+        &self,
+        messages: Vec<Message>,
+        temperature: f32,
+    ) -> Result<String> {
         match tokio::time::timeout(
             Duration::from_secs(Self::GLOBAL_TIMEOUT_SECS),
             self.send_chat_inner(messages, temperature),

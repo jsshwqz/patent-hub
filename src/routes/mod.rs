@@ -201,7 +201,11 @@ impl AppState {
                 ch.retain(|id, entry| {
                     let stale = entry.created_at.elapsed() > stale_threshold;
                     if stale {
-                        tracing::info!("清理超时管道通道: {} (已存在 {:?})", id, entry.created_at.elapsed());
+                        tracing::info!(
+                            "清理超时管道通道: {} (已存在 {:?})",
+                            id,
+                            entry.created_at.elapsed()
+                        );
                     }
                     !stale
                 });
@@ -212,7 +216,9 @@ impl AppState {
 
                 // 重置卡住超过 10 分钟的 analyzing 创意为 error
                 match db.reset_stuck_analyzing(10) {
-                    Ok(n) if n > 0 => tracing::warn!("自动恢复: 重置 {} 个卡住的 analyzing 创意为 error", n),
+                    Ok(n) if n > 0 => {
+                        tracing::warn!("自动恢复: 重置 {} 个卡住的 analyzing 创意为 error", n)
+                    }
                     Ok(_) => {}
                     Err(e) => tracing::error!("自动恢复检查失败: {}", e),
                 }
@@ -222,7 +228,8 @@ impl AppState {
                     let threshold = std::time::Duration::from_secs(24 * 3600);
                     for entry in entries.flatten() {
                         if let Ok(meta) = entry.metadata() {
-                            let age = meta.modified()
+                            let age = meta
+                                .modified()
                                 .ok()
                                 .and_then(|t| t.elapsed().ok())
                                 .unwrap_or_default();

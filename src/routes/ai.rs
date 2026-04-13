@@ -6,9 +6,9 @@ use axum::{
     Json,
 };
 use futures::stream::Stream;
+use reqwest::Client;
 use serde_json::json;
 use std::convert::Infallible;
-use reqwest::Client;
 
 /// Quick web search: SerpAPI → Sogou free fallback. Returns formatted context string.
 async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
@@ -52,7 +52,10 @@ async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
         let url = format!("https://www.sogou.com/web?query={}", encoded);
         if let Ok(resp) = client
             .get(&url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
             .send()
             .await
         {
@@ -63,19 +66,32 @@ async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
                         let after = &cap[title_start + 1..];
                         if let Some(title_end) = after.find("</") {
                             let title = after[..title_end]
-                                .replace("<em>", "").replace("</em>", "")
-                                .replace("<!--", "").replace("-->", "")
-                                .trim().to_string();
+                                .replace("<em>", "")
+                                .replace("</em>", "")
+                                .replace("<!--", "")
+                                .replace("-->", "")
+                                .trim()
+                                .to_string();
                             // Extract snippet
                             let snippet = if let Some(abs_start) = cap.find("strAbstract") {
                                 let abs = &cap[abs_start..];
                                 if let Some(s) = abs.find('>') {
                                     let a = &abs[s + 1..];
                                     if let Some(e) = a.find("</") {
-                                        a[..e].replace("<em>", "").replace("</em>", "").trim().to_string()
-                                    } else { String::new() }
-                                } else { String::new() }
-                            } else { String::new() };
+                                        a[..e]
+                                            .replace("<em>", "")
+                                            .replace("</em>", "")
+                                            .trim()
+                                            .to_string()
+                                    } else {
+                                        String::new()
+                                    }
+                                } else {
+                                    String::new()
+                                }
+                            } else {
+                                String::new()
+                            };
                             if !title.is_empty() {
                                 results.push((title, snippet, String::new()));
                             }
@@ -167,7 +183,11 @@ pub async fn api_ai_chat_stream(
     State(s): State<AppState>,
     Json(req): Json<AiChatRequest>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     let ctx = req
         .patent_id
         .as_ref()
@@ -200,8 +220,17 @@ pub async fn api_ai_chat(
     State(s): State<AppState>,
     Json(req): Json<AiChatRequest>,
 ) -> Json<AiResponse> {
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
-    let serpapi_key = s.config.read().unwrap_or_else(|e| e.into_inner()).serpapi_key.clone();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
+    let serpapi_key = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .serpapi_key
+        .clone();
 
     // Optional web search: fetch real-time info before AI response
     let web_context = if req.web_search {
@@ -225,7 +254,10 @@ pub async fn api_ai_chat(
     // Build system prompt with optional web search results
     let base_prompt = ctx.as_deref().unwrap_or("你是创研台的 AI 助手，擅长专利分析、技术方案评估、可行性验证和知识产权保护。请用中文回答。");
     let system_prompt = match &web_context {
-        Some(web) => format!("{}\n\n以下是联网搜索到的最新资料，请结合这些信息回答用户问题：\n{}", base_prompt, web),
+        Some(web) => format!(
+            "{}\n\n以下是联网搜索到的最新资料，请结合这些信息回答用户问题：\n{}",
+            base_prompt, web
+        ),
         None => base_prompt.to_string(),
     };
 
@@ -255,7 +287,11 @@ pub async fn api_ai_summarize(
     State(s): State<AppState>,
     Json(req): Json<FetchPatentRequest>,
 ) -> Json<AiResponse> {
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match s.db.get_patent(&req.patent_number) {
         Ok(Some(p)) => match ai
             .summarize_patent(&p.title, &p.abstract_text, &p.claims)
@@ -281,7 +317,10 @@ fn resolve_compare_item(
     // Text object: { "type": "text", "title": "...", "content": "..." }
     if let Some(obj) = item.as_object() {
         if obj.get("type").and_then(|v| v.as_str()) == Some("text") {
-            let title = obj.get("title").and_then(|v| v.as_str()).unwrap_or("上传文件");
+            let title = obj
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("上传文件");
             let content = obj.get("content").and_then(|v| v.as_str()).unwrap_or("");
             let preview: String = content.chars().take(2000).collect();
             return Ok(format!("【{}】\n标题：{}\n内容：{}", label, title, preview));
@@ -301,7 +340,10 @@ fn resolve_compare_item(
                 label, p.patent_number, p.title, p.applicant, abs, claims
             ))
         }
-        _ => Err(format!("{}「{}」未找到。请确认已通过搜索页收录到本地库。", label, id)),
+        _ => Err(format!(
+            "{}「{}」未找到。请确认已通过搜索页收录到本地库。",
+            label, id
+        )),
     }
 }
 
@@ -312,13 +354,17 @@ pub async fn api_ai_compare(
     // Support new format: items array with mixed types
     let (info1, info2) = if let Some(items) = req["items"].as_array() {
         if items.len() < 2 {
-            return Json(AiResponse { content: "请至少选择两个专利/文件进行对比".into() });
+            return Json(AiResponse {
+                content: "请至少选择两个专利/文件进行对比".into(),
+            });
         }
         let i1 = match resolve_compare_item(&s.db, &items[0], "专利1") {
-            Ok(s) => s, Err(e) => return Json(AiResponse { content: e }),
+            Ok(s) => s,
+            Err(e) => return Json(AiResponse { content: e }),
         };
         let i2 = match resolve_compare_item(&s.db, &items[1], "专利2") {
-            Ok(s) => s, Err(e) => return Json(AiResponse { content: e }),
+            Ok(s) => s,
+            Err(e) => return Json(AiResponse { content: e }),
         };
         (i1, i2)
     } else {
@@ -326,10 +372,12 @@ pub async fn api_ai_compare(
         let id1 = json!(req["patent_id1"].as_str().unwrap_or(""));
         let id2 = json!(req["patent_id2"].as_str().unwrap_or(""));
         let i1 = match resolve_compare_item(&s.db, &id1, "专利1") {
-            Ok(s) => s, Err(e) => return Json(AiResponse { content: e }),
+            Ok(s) => s,
+            Err(e) => return Json(AiResponse { content: e }),
         };
         let i2 = match resolve_compare_item(&s.db, &id2, "专利2") {
-            Ok(s) => s, Err(e) => return Json(AiResponse { content: e }),
+            Ok(s) => s,
+            Err(e) => return Json(AiResponse { content: e }),
         };
         (i1, i2)
     };
@@ -346,7 +394,11 @@ pub async fn api_ai_compare(
         info1, info2
     );
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match ai.chat(&prompt, None).await {
         Ok(content) => Json(AiResponse { content }),
         Err(e) => Json(AiResponse {
@@ -400,7 +452,11 @@ pub async fn api_ai_analyze_results(
         query, patent_list
     );
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match ai.chat(&prompt, None).await {
         Ok(content) => {
             let trimmed = content.trim();
@@ -438,7 +494,11 @@ pub async fn api_ai_claims_analysis(
         return Json(json!({"error": "该专利没有权利要求数据，请先获取完整专利信息"}));
     }
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match ai.analyze_claims(&patent.title, &patent.claims).await {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("分析失败: {}", e)})),
@@ -492,7 +552,11 @@ pub async fn api_ai_risk_assessment(
         )}));
     }
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match ai.assess_infringement(product_desc, &patents_info).await {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("评估失败: {}", e)})),
@@ -505,8 +569,9 @@ pub async fn api_ai_compare_matrix(
     Json(req): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
     // Support new format: items array with mixed types (text objects + patent IDs)
-    let items = req["items"].as_array()
-        .or_else(|| req["patent_ids"].as_array());  // backward compat
+    let items = req["items"]
+        .as_array()
+        .or_else(|| req["patent_ids"].as_array()); // backward compat
 
     let items = match items {
         Some(arr) if arr.len() >= 2 && arr.len() <= 5 => arr.clone(),
@@ -519,12 +584,17 @@ pub async fn api_ai_compare_matrix(
     for (i, item) in items.iter().enumerate() {
         if let Some(obj) = item.as_object() {
             if obj.get("type").and_then(|v| v.as_str()) == Some("text") {
-                let title = obj.get("title").and_then(|v| v.as_str()).unwrap_or("上传文件");
+                let title = obj
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("上传文件");
                 let content = obj.get("content").and_then(|v| v.as_str()).unwrap_or("");
                 let preview: String = content.chars().take(2000).collect();
                 patents_info.push_str(&format!(
                     "### 文件 {}\n标题：{}\n内容：{}\n\n",
-                    i + 1, title, preview
+                    i + 1,
+                    title,
+                    preview
                 ));
                 continue;
             }
@@ -534,13 +604,21 @@ pub async fn api_ai_compare_matrix(
             let claims_preview: String = p.claims.chars().take(600).collect();
             patents_info.push_str(&format!(
                 "### 专利 {}\n专利号：{}\n标题：{}\n申请人：{}\n摘要：{}\n权利要求：{}\n\n",
-                i + 1, p.patent_number, p.title, p.applicant,
-                p.abstract_text, claims_preview
+                i + 1,
+                p.patent_number,
+                p.title,
+                p.applicant,
+                p.abstract_text,
+                claims_preview
             ));
         }
     }
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match ai.compare_multiple(&patents_info).await {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("对比失败: {}", e)})),
@@ -574,7 +652,11 @@ pub async fn api_ai_batch_summarize(
         }
     }
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     let results = ai.batch_summarize(&patents_data).await;
 
     let summaries: Vec<serde_json::Value> = results
@@ -596,14 +678,14 @@ pub async fn api_ai_batch_summarize(
 
 /// Resolve "my patent" input: either patent ID/number from DB, or uploaded text object.
 /// Returns formatted patent info string.
-fn resolve_my_patent(
-    db: &crate::db::Database,
-    req: &serde_json::Value,
-) -> Result<String, String> {
+fn resolve_my_patent(db: &crate::db::Database, req: &serde_json::Value) -> Result<String, String> {
     // Check for uploaded text first: { "type": "text", "title": "...", "content": "..." }
     if let Some(obj) = req["my_patent"].as_object() {
         if obj.get("type").and_then(|v| v.as_str()) == Some("text") {
-            let title = obj.get("title").and_then(|v| v.as_str()).unwrap_or("上传文件");
+            let title = obj
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("上传文件");
             let content = obj.get("content").and_then(|v| v.as_str()).unwrap_or("");
             if content.trim().len() < 10 {
                 return Err("上传的文件内容过短".into());
@@ -620,7 +702,10 @@ fn resolve_my_patent(
     }
 
     let patent = db.get_patent(my_id).ok().flatten().ok_or_else(|| {
-        format!("我的专利「{}」未找到。请确认已通过搜索页收录到本地库。", my_id)
+        format!(
+            "我的专利「{}」未找到。请确认已通过搜索页收录到本地库。",
+            my_id
+        )
     })?;
 
     if patent.claims.trim().len() < 10 {
@@ -647,19 +732,26 @@ fn resolve_references(
     for (i, item) in refs.iter().enumerate() {
         if let Some(obj) = item.as_object() {
             if obj.get("type").and_then(|v| v.as_str()) == Some("text") {
-                let title = obj.get("title").and_then(|v| v.as_str()).unwrap_or("上传文件");
+                let title = obj
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("上传文件");
                 let content = obj.get("content").and_then(|v| v.as_str()).unwrap_or("");
                 let preview: String = content.chars().take(3000).collect();
                 refs_info.push_str(&format!(
                     "### 对比文件 {} — {}\n\n文件全文：\n{}\n\n",
-                    i + 1, title, preview
+                    i + 1,
+                    title,
+                    preview
                 ));
                 continue;
             }
         }
         // String — patent ID/number
         let id = item.as_str().unwrap_or("");
-        if id.is_empty() { continue; }
+        if id.is_empty() {
+            continue;
+        }
         if let Ok(Some(p)) = db.get_patent(id) {
             let claims_preview: String = p.claims.chars().take(1500).collect();
             let abs_preview: String = p.abstract_text.chars().take(1500).collect();
@@ -695,8 +787,9 @@ pub async fn api_ai_inventiveness_analysis(
         Err(e) => return Json(json!({"error": e})),
     };
 
-    let refs = req["references"].as_array()
-        .or_else(|| req["reference_ids"].as_array());  // backward compat
+    let refs = req["references"]
+        .as_array()
+        .or_else(|| req["reference_ids"].as_array()); // backward compat
     let refs = match refs {
         Some(arr) if !arr.is_empty() && arr.len() <= 4 => arr.clone(),
         Some(arr) if arr.is_empty() => return Json(json!({"error": "请选择至少一个对比文件"})),
@@ -709,7 +802,11 @@ pub async fn api_ai_inventiveness_analysis(
         Err(e) => return Json(json!({"error": e})),
     };
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
     match ai.inventiveness_analysis(&my_info, &refs_info).await {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("创造性分析失败: {}", e)})),
@@ -724,7 +821,10 @@ pub async fn api_ai_office_action_response(
     // my_patent: text object or patent ID string
     let my_info = if let Some(obj) = req["my_patent"].as_object() {
         if obj.get("type").and_then(|v| v.as_str()) == Some("text") {
-            let title = obj.get("title").and_then(|v| v.as_str()).unwrap_or("我的专利");
+            let title = obj
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("我的专利");
             let content = obj.get("content").and_then(|v| v.as_str()).unwrap_or("");
             if content.trim().len() < 10 {
                 return Json(json!({"error": "我的专利内容过短"}));
@@ -746,7 +846,10 @@ pub async fn api_ai_office_action_response(
     // office_action: text object or plain string
     let oa_text = if let Some(obj) = req["office_action"].as_object() {
         if obj.get("type").and_then(|v| v.as_str()) == Some("text") {
-            obj.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string()
+            obj.get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
         } else {
             req["office_action"].as_str().unwrap_or("").to_string()
         }
@@ -765,9 +868,17 @@ pub async fn api_ai_office_action_response(
             for (i, item) in arr.iter().enumerate() {
                 if let Some(obj) = item.as_object() {
                     if obj.get("type").and_then(|v| v.as_str()) == Some("text") {
-                        let title = obj.get("title").and_then(|v| v.as_str()).unwrap_or("对比文献");
+                        let title = obj
+                            .get("title")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("对比文献");
                         let content = obj.get("content").and_then(|v| v.as_str()).unwrap_or("");
-                        info.push_str(&format!("### 对比文献 {} — {}\n{}\n\n", i + 1, title, content));
+                        info.push_str(&format!(
+                            "### 对比文献 {} — {}\n{}\n\n",
+                            i + 1,
+                            title,
+                            content
+                        ));
                         continue;
                     }
                 }
@@ -788,8 +899,15 @@ pub async fn api_ai_office_action_response(
         _ => String::new(),
     };
 
-    let ai = s.config.read().unwrap_or_else(|e| e.into_inner()).ai_client();
-    match ai.office_action_response(&my_info, &oa_text, &refs_info).await {
+    let ai = s
+        .config
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .ai_client();
+    match ai
+        .office_action_response(&my_info, &oa_text, &refs_info)
+        .await
+    {
         Ok(content) => Json(json!({"status": "ok", "analysis": content})),
         Err(e) => Json(json!({"error": format!("分析失败: {}", e)})),
     }

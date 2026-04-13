@@ -1,6 +1,6 @@
+use crate::patent::PatentSummary;
 use anyhow::Result;
 use rusqlite::params;
-use crate::patent::PatentSummary;
 
 impl super::Database {
     // ── Collections CRUD ──────────────────────────────────────────────

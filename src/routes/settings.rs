@@ -15,14 +15,18 @@ pub async fn api_get_settings(State(s): State<AppState>) -> Json<serde_json::Val
         }
     }
 
-    let fallbacks: Vec<serde_json::Value> = config.ai_fallbacks.iter().map(|fb| {
-        json!({
-            "name": &fb.name,
-            "base_url": &fb.base_url,
-            "api_key": mask_api_key(&fb.api_key),
-            "model": &fb.model,
+    let fallbacks: Vec<serde_json::Value> = config
+        .ai_fallbacks
+        .iter()
+        .map(|fb| {
+            json!({
+                "name": &fb.name,
+                "base_url": &fb.base_url,
+                "api_key": mask_api_key(&fb.api_key),
+                "model": &fb.model,
+            })
         })
-    }).collect();
+        .collect();
 
     Json(json!({
         "serpapi_key": mask_api_key(&config.serpapi_key),
@@ -51,7 +55,10 @@ pub async fn api_save_serpapi(
 
     if api_key.is_empty() {
         // 允许清空（与 Bing/Lens 行为一致）
-        s.config.write().unwrap_or_else(|e| e.into_inner()).serpapi_key = String::new();
+        s.config
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .serpapi_key = String::new();
         let _ = s.db.set_setting("SERPAPI_KEY", "");
         let _ = update_env_file("SERPAPI_KEY", "");
         return Json(json!({"status": "ok", "message": "SerpAPI Key 已清除"}));
@@ -67,7 +74,10 @@ pub async fn api_save_serpapi(
     }
 
     // 先更新内存配置（立即生效）
-    s.config.write().unwrap_or_else(|e| e.into_inner()).serpapi_key = api_key.to_string();
+    s.config
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .serpapi_key = api_key.to_string();
     // SQLite 持久化（主存储，Android 友好）
     if let Err(e) = s.db.set_setting("SERPAPI_KEY", api_key) {
         tracing::warn!("保存设置到数据库失败: {}", e);
@@ -144,7 +154,10 @@ pub async fn api_save_bing(
     let api_key = req["api_key"].as_str().unwrap_or("").trim();
     if api_key.is_empty() {
         // 允许清空
-        s.config.write().unwrap_or_else(|e| e.into_inner()).bing_api_key = String::new();
+        s.config
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .bing_api_key = String::new();
         let _ = s.db.set_setting("BING_API_KEY", "");
         let _ = update_env_file("BING_API_KEY", "");
         return Json(json!({"status": "ok", "message": "Bing Key 已清除"}));
@@ -152,7 +165,10 @@ pub async fn api_save_bing(
     if api_key.len() < 20 || api_key.len() > 200 {
         return Json(json!({"status": "error", "message": "Key 长度无效（20-200字符）"}));
     }
-    s.config.write().unwrap_or_else(|e| e.into_inner()).bing_api_key = api_key.to_string();
+    s.config
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .bing_api_key = api_key.to_string();
     let _ = s.db.set_setting("BING_API_KEY", api_key);
     let _ = update_env_file("BING_API_KEY", api_key);
     Json(json!({"status": "ok"}))
@@ -165,7 +181,10 @@ pub async fn api_save_lens(
 ) -> Json<serde_json::Value> {
     let api_key = req["api_key"].as_str().unwrap_or("").trim();
     if api_key.is_empty() {
-        s.config.write().unwrap_or_else(|e| e.into_inner()).lens_api_key = String::new();
+        s.config
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .lens_api_key = String::new();
         let _ = s.db.set_setting("LENS_API_KEY", "");
         let _ = update_env_file("LENS_API_KEY", "");
         return Json(json!({"status": "ok", "message": "Lens Key 已清除"}));
@@ -173,7 +192,10 @@ pub async fn api_save_lens(
     if api_key.len() < 10 || api_key.len() > 200 {
         return Json(json!({"status": "error", "message": "Key 长度无效（10-200字符）"}));
     }
-    s.config.write().unwrap_or_else(|e| e.into_inner()).lens_api_key = api_key.to_string();
+    s.config
+        .write()
+        .unwrap_or_else(|e| e.into_inner())
+        .lens_api_key = api_key.to_string();
     let _ = s.db.set_setting("LENS_API_KEY", api_key);
     let _ = update_env_file("LENS_API_KEY", api_key);
     Json(json!({"status": "ok"}))
@@ -185,7 +207,11 @@ pub async fn api_save_cnipr(
     Json(req): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
     let custom_client_id = req["client_id"].as_str().unwrap_or("").trim().to_string();
-    let custom_client_secret = req["client_secret"].as_str().unwrap_or("").trim().to_string();
+    let custom_client_secret = req["client_secret"]
+        .as_str()
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let user = req["user"].as_str().unwrap_or("").trim().to_string();
     let password = req["password"].as_str().unwrap_or("").trim().to_string();
 
@@ -201,7 +227,12 @@ pub async fn api_save_cnipr(
         config.cnipr_client_id = super::CNIPR_DEFAULT_CLIENT_ID.to_string();
         config.cnipr_client_secret = super::CNIPR_DEFAULT_CLIENT_SECRET.to_string();
         drop(config);
-        for k in ["CNIPR_CLIENT_ID", "CNIPR_CLIENT_SECRET", "CNIPR_USER", "CNIPR_PASSWORD"] {
+        for k in [
+            "CNIPR_CLIENT_ID",
+            "CNIPR_CLIENT_SECRET",
+            "CNIPR_USER",
+            "CNIPR_PASSWORD",
+        ] {
             let _ = s.db.set_setting(k, "");
             let _ = update_env_file(k, "");
         }

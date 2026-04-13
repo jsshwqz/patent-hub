@@ -1,7 +1,11 @@
 // ── Relevance scoring functions ──────────────────────────────────────────────
 
 /// Unified relevance scoring for a single field (applicant or inventor).
-pub(crate) fn calculate_field_relevance(query: &str, field_value: &str, field_name: &str) -> (f64, String) {
+pub(crate) fn calculate_field_relevance(
+    query: &str,
+    field_value: &str,
+    field_name: &str,
+) -> (f64, String) {
     let q = query.trim().to_lowercase();
     let f = field_value.trim().to_lowercase();
 
@@ -70,7 +74,12 @@ pub(crate) fn calculate_field_relevance(query: &str, field_value: &str, field_na
 }
 
 /// Calculate mixed search relevance score.
-pub(crate) fn calculate_mixed_relevance(query: &str, applicant: &str, inventor: &str, title: &str) -> f64 {
+pub(crate) fn calculate_mixed_relevance(
+    query: &str,
+    applicant: &str,
+    inventor: &str,
+    title: &str,
+) -> f64 {
     let q = query.trim().to_lowercase();
 
     let (applicant_score, _) = calculate_field_relevance(query, applicant, "applicant");

@@ -25,9 +25,9 @@ pub async fn deep_analysis(
 
     // 更新研发状态机：低新颖性时记录排除路径
     if ctx.novelty_score < 30.0 {
-        ctx.research_state.excluded_paths.push(
-            "该方向与现有技术高度重叠，建议调整技术路线".to_string()
-        );
+        ctx.research_state
+            .excluded_paths
+            .push("该方向与现有技术高度重叠，建议调整技术路线".to_string());
     }
 
     Ok(())
@@ -245,7 +245,8 @@ pub async fn extract_feature_cards_ai(
          - application_scenarios: 应用场景/领域\n\n\
          创意标题：{}\n创意描述：{}\n\n分析结果：{}\n\n\
          请直接输出 JSON 数组，不要包含 markdown 标记。",
-        ctx.title, ctx.description,
+        ctx.title,
+        ctx.description,
         ctx.ai_analysis.chars().take(2000).collect::<String>()
     );
 
@@ -263,21 +264,43 @@ pub async fn extract_feature_cards_ai(
                     let card = FeatureCard {
                         id: uuid::Uuid::new_v4().to_string(),
                         idea_id: ctx.idea_id.clone(),
-                        title: card_json["title"].as_str().unwrap_or("AI提取特征").to_string(),
+                        title: card_json["title"]
+                            .as_str()
+                            .unwrap_or("AI提取特征")
+                            .to_string(),
                         description: String::new(),
                         novelty_score: None,
                         created_at: now.clone(),
-                        technical_problem: card_json["technical_problem"].as_str().unwrap_or("").to_string(),
-                        core_structure: card_json["core_structure"].as_str().unwrap_or("").to_string(),
-                        key_relations: card_json["key_relations"].as_str().unwrap_or("").to_string(),
-                        process_steps: card_json["process_steps"].as_str().unwrap_or("").to_string(),
-                        application_scenarios: card_json["application_scenarios"].as_str().unwrap_or("").to_string(),
+                        technical_problem: card_json["technical_problem"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
+                        core_structure: card_json["core_structure"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
+                        key_relations: card_json["key_relations"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
+                        process_steps: card_json["process_steps"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
+                        application_scenarios: card_json["application_scenarios"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
                     };
                     if let Err(e) = db.insert_feature_card(&card) {
                         tracing::warn!("AI 特征卡片存储失败: {}", e);
                     }
                 }
-                tracing::info!("AI 自动提取 {} 张 5 维特征卡片 (idea: {})", cards.len().min(5), ctx.idea_id);
+                tracing::info!(
+                    "AI 自动提取 {} 张 5 维特征卡片 (idea: {})",
+                    cards.len().min(5),
+                    ctx.idea_id
+                );
             } else {
                 tracing::warn!("AI 特征提取返回非法 JSON，跳过");
             }

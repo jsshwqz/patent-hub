@@ -62,8 +62,18 @@ pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
     ));
 
     // 生成评分汇总证据 / Generate scoring summary evidence
-    let level = if final_score >= 70.0 { "高新颖性" } else if final_score >= 40.0 { "中等新颖性" } else { "低新颖性" };
-    let relation = if final_score >= 60.0 { "supports" } else { "contradicts" };
+    let level = if final_score >= 70.0 {
+        "高新颖性"
+    } else if final_score >= 40.0 {
+        "中等新颖性"
+    } else {
+        "低新颖性"
+    };
+    let relation = if final_score >= 60.0 {
+        "supports"
+    } else {
+        "contradicts"
+    };
     ctx.evidence_chain.push(Evidence {
         id: uuid::Uuid::new_v4().to_string(),
         idea_id: ctx.idea_id.clone(),

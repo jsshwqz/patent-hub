@@ -148,7 +148,9 @@ mod tests {
         let spec = ExperimentSpec {
             title: "test".to_string(),
             language: "python".to_string(),
-            script_content: "import json\nprint(json.dumps({\"accuracy\": 0.95}))\nprint(\"EXPERIMENT_DONE\")".to_string(),
+            script_content:
+                "import json\nprint(json.dumps({\"accuracy\": 0.95}))\nprint(\"EXPERIMENT_DONE\")"
+                    .to_string(),
             hypothesis: "test hypothesis".to_string(),
             timeout_secs: 10,
         };

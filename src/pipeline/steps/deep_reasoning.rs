@@ -109,8 +109,7 @@ const DIMENSIONS: &[Dimension] = &[
 ];
 
 /// 合成轮的 system prompt
-const SYNTHESIS_SYSTEM: &str =
-    "你是一位跨学科整合大师。你收到了 6 位不同思维模式专家的分析。\n\
+const SYNTHESIS_SYSTEM: &str = "你是一位跨学科整合大师。你收到了 6 位不同思维模式专家的分析。\n\
      你的任务不是总结他们说了什么，而是找到他们之间的化学反应——\n\
      单个维度看不到，但两个或多个维度交叉时才会浮现的洞察。\n\n\
      你需要输出：\n\n\
@@ -150,7 +149,14 @@ fn build_user_context(ctx: &PipelineContext) -> String {
     } else {
         ctx.contradictions
             .iter()
-            .map(|c| format!("- {}: {} (强度 {:.0}%)", c.dimension, c.opportunity, c.signal_strength * 100.0))
+            .map(|c| {
+                format!(
+                    "- {}: {} (强度 {:.0}%)",
+                    c.dimension,
+                    c.opportunity,
+                    c.signal_strength * 100.0
+                )
+            })
             .collect::<Vec<_>>()
             .join("\n")
     };
@@ -216,8 +222,9 @@ fn parse_synthesis(text: &str) -> (Vec<String>, Vec<String>) {
             continue;
         }
 
-        let content = trimmed
-            .trim_start_matches(|c: char| c == '-' || c == '*' || c.is_ascii_digit() || c == '.' || c == ' ');
+        let content = trimmed.trim_start_matches(|c: char| {
+            c == '-' || c == '*' || c.is_ascii_digit() || c == '.' || c == ' '
+        });
         if content.len() > 10 {
             match section {
                 "novel" => novel.push(content.to_string()),
@@ -242,7 +249,12 @@ pub async fn run_deep_reasoning(
 
     // ── 6 轮维度推演 ──
     for (i, dim) in DIMENSIONS.iter().enumerate() {
-        tracing::info!("Deep reasoning: dimension {}/{} [{}]", i + 1, total_rounds, dim.key);
+        tracing::info!(
+            "Deep reasoning: dimension {}/{} [{}]",
+            i + 1,
+            total_rounds,
+            dim.key
+        );
 
         // 发送子进度
         if let Some(tx) = progress_tx {
@@ -279,7 +291,11 @@ pub async fn run_deep_reasoning(
     }
 
     // ── 第 7 轮：跨维度合成 ──
-    tracing::info!("Deep reasoning: synthesis round ({}/{})", total_rounds, total_rounds);
+    tracing::info!(
+        "Deep reasoning: synthesis round ({}/{})",
+        total_rounds,
+        total_rounds
+    );
 
     if let Some(tx) = progress_tx {
         let _ = tx.send(PipelineProgress {
@@ -320,7 +336,10 @@ pub async fn run_deep_reasoning(
         inputs = synthesis_input,
     );
 
-    match ai.chat_with_system(SYNTHESIS_SYSTEM, &synthesis_prompt, 0.5).await {
+    match ai
+        .chat_with_system(SYNTHESIS_SYSTEM, &synthesis_prompt, 0.5)
+        .await
+    {
         Ok(text) => {
             let (novel, blinds) = parse_synthesis(&text);
             result.synthesis = text;

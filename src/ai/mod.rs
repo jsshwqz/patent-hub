@@ -8,10 +8,10 @@
 //! - patent: 专利分析（摘要/权利要求/侵权/对比/批量）
 //! - idea: 创意分析与图片描述
 
-mod client;
 mod chat;
-mod patent;
+mod client;
 mod idea;
+mod patent;
 mod tests;
 
 pub use client::AiClient;

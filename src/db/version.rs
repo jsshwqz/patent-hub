@@ -76,7 +76,11 @@ impl Database {
         Ok(rows)
     }
 
-    pub fn get_latest_version(&self, idea_id: &str, branch_id: &str) -> Result<Option<IdeaVersion>> {
+    pub fn get_latest_version(
+        &self,
+        idea_id: &str,
+        branch_id: &str,
+    ) -> Result<Option<IdeaVersion>> {
         let c = self.conn();
         let mut stmt = c.prepare(
             "SELECT id, idea_id, version_number, context_json, current_step, branch_id, created_at \

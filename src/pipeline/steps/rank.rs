@@ -73,7 +73,11 @@ pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
             ctx.evidence_chain.push(Evidence {
                 id: uuid::Uuid::new_v4().to_string(),
                 idea_id: ctx.idea_id.clone(),
-                claim: format!("与现有技术「{}」相似度 {:.0}%", m.source_title, m.combined_score * 100.0),
+                claim: format!(
+                    "与现有技术「{}」相似度 {:.0}%",
+                    m.source_title,
+                    m.combined_score * 100.0
+                ),
                 source_type: m.source_type.clone(),
                 source_id: m.source_id.clone(),
                 source_title: m.source_title.clone(),

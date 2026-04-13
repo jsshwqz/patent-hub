@@ -101,7 +101,10 @@ pub async fn execute(ctx: &mut PipelineContext) -> Result<()> {
         ctx.evidence_chain.push(Evidence {
             id: uuid::Uuid::new_v4().to_string(),
             idea_id: ctx.idea_id.clone(),
-            claim: format!("技术路线矛盾：{} vs {} ({})", c.source_a, c.source_b, c.dimension),
+            claim: format!(
+                "技术路线矛盾：{} vs {} ({})",
+                c.source_a, c.source_b, c.dimension
+            ),
             source_type: "contradiction".to_string(),
             source_id: format!("{}|{}", c.source_a, c.source_b),
             source_title: format!("{} ↔ {}", c.source_a, c.source_b),

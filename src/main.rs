@@ -64,7 +64,9 @@ async fn main() -> anyhow::Result<()> {
         format!("{}/innoforge.db", data_dir)
     } else {
         // 兼容旧版数据库文件名
-        if std::path::Path::new("patent_hub.db").exists() && !std::path::Path::new("innoforge.db").exists() {
+        if std::path::Path::new("patent_hub.db").exists()
+            && !std::path::Path::new("innoforge.db").exists()
+        {
             let _ = std::fs::rename("patent_hub.db", "innoforge.db");
         }
         "innoforge.db".to_string()
@@ -162,14 +164,20 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/idea/submit", post(routes::api_idea_submit))
         .route("/api/idea/analyze", post(routes::api_idea_analyze))
         .route("/api/idea/pipeline", post(routes::api_idea_pipeline))
-        .route("/api/ideas/batch-compare", post(routes::api_ideas_batch_compare))
+        .route(
+            "/api/ideas/batch-compare",
+            post(routes::api_ideas_batch_compare),
+        )
         .route("/api/idea/list", get(routes::api_idea_list))
         .route("/api/idea/:id", get(routes::api_idea_get))
         .route("/api/idea/:id/delete", post(routes::api_idea_delete))
         .route("/api/idea/:id/progress", get(routes::api_idea_progress))
         .route("/api/idea/:id/resume", post(routes::api_idea_resume))
         .route("/api/idea/:id/report", get(routes::api_idea_report))
-        .route("/api/idea/:id/report.html", get(routes::api_idea_report_html))
+        .route(
+            "/api/idea/:id/report.html",
+            get(routes::api_idea_report_html),
+        )
         .route("/api/idea/:id/evidence", get(routes::api_idea_evidence))
         .route("/api/idea/:id/chat", post(routes::api_idea_chat))
         .route("/api/idea/:id/messages", get(routes::api_idea_messages))
@@ -182,7 +190,10 @@ async fn main() -> anyhow::Result<()> {
             "/api/ideas/:id/feature-cards",
             get(routes::api_get_feature_cards).post(routes::api_create_feature_card),
         )
-        .route("/api/feature-cards/diff", get(routes::api_feature_card_diff))
+        .route(
+            "/api/feature-cards/diff",
+            get(routes::api_feature_card_diff),
+        )
         // 版本管理 + 迭代 API / Version management + iterate API
         .route("/api/idea/:id/claim-tree", get(routes::api_idea_claim_tree))
         .route("/api/idea/:id/iterate", post(routes::api_idea_iterate))
@@ -241,10 +252,12 @@ async fn main() -> anyhow::Result<()> {
         // 请求体大小限制（20MB，支持 PDF 上传）/ Body size limit (20MB for PDF upload)
         .layer(DefaultBodyLimit::max(20 * 1024 * 1024))
         // 跨域支持（MCP 客户端等需要）/ CORS for MCP clients and external frontends
-        .layer(CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any),
+        )
         // 安全响应头 / Security headers
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::header::X_FRAME_OPTIONS,

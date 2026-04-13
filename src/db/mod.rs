@@ -3,16 +3,16 @@
 //! 基于 SQLite + FTS5 的本地数据持久化，支持全文搜索、创意管理、收藏夹、标签等。
 //! Local data persistence with SQLite + FTS5, supporting full-text search, ideas, collections, tags.
 
-mod migrations;
-mod patent;
-mod idea;
 mod collection;
 mod evidence;
-mod settings;
-pub mod version;
+mod idea;
+mod migrations;
+mod patent;
 pub(crate) mod relevance;
+mod settings;
 #[cfg(test)]
 mod tests;
+pub mod version;
 
 use anyhow::Result;
 use rusqlite::Connection;

@@ -9,22 +9,16 @@ pub mod engine;
 
 pub use command::OrchestratorCommand;
 
+use crate::db::version::{Finding, IdeaBranch, IdeaVersion};
 use crate::db::Database;
-use crate::db::version::{IdeaVersion, IdeaBranch, Finding};
 use crate::pipeline::context::PipelineContext;
 use crate::pipeline::state::PipelineStep;
 use anyhow::Result;
 use std::sync::Arc;
 
 /// 保存版本快照到 idea_versions 表
-pub fn save_version_snapshot(
-    db: &Arc<Database>,
-    ctx: &PipelineContext,
-    step: PipelineStep,
-) {
-    let version_number = db
-        .get_next_version_number(&ctx.idea_id)
-        .unwrap_or(1);
+pub fn save_version_snapshot(db: &Arc<Database>, ctx: &PipelineContext, step: PipelineStep) {
+    let version_number = db.get_next_version_number(&ctx.idea_id).unwrap_or(1);
 
     let version = IdeaVersion {
         id: uuid::Uuid::new_v4().to_string(),
@@ -42,12 +36,7 @@ pub fn save_version_snapshot(
 }
 
 /// 记录失败路径到 findings 表
-pub fn record_failure(
-    db: &Arc<Database>,
-    ctx: &PipelineContext,
-    step: PipelineStep,
-    error: &str,
-) {
+pub fn record_failure(db: &Arc<Database>, ctx: &PipelineContext, step: PipelineStep, error: &str) {
     let finding = Finding {
         id: uuid::Uuid::new_v4().to_string(),
         idea_id: ctx.idea_id.clone(),

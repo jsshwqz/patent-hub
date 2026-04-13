@@ -1,10 +1,10 @@
 pub mod analysis;
 pub mod claim_tree;
 pub mod contradiction;
-pub mod experiment;
 pub mod deep_reasoning;
 pub mod diversity;
 pub mod expand;
+pub mod experiment;
 pub mod finalize;
 pub mod parse;
 pub mod prior_art_cluster;

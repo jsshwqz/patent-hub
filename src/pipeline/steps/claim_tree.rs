@@ -9,11 +9,7 @@ use anyhow::Result;
 use rusqlite::params;
 use std::sync::Arc;
 
-pub async fn execute(
-    ctx: &mut PipelineContext,
-    ai: &AiClient,
-    db: &Arc<Database>,
-) -> Result<()> {
+pub async fn execute(ctx: &mut PipelineContext, ai: &AiClient, db: &Arc<Database>) -> Result<()> {
     let prompt = format!(
         "你是专利代理人。根据以下创意和分析结果，草拟权利要求书结构。\n\
          输出 JSON，格式如下（不要 markdown 标记）：\n\
@@ -21,7 +17,10 @@ pub async fn execute(
          \"features\":[{{\"description\":\"特征描述\",\"novelty_flag\":true}}]}}]}}\n\n\
          要求：至少1条独立权利要求，每条包含2-5个必要技术特征，标注哪些是新颖性特征。\n\n\
          创意：{}\n描述：{}\n技术领域：{}\n新颖性评分：{:.1}/100\n分析：{}",
-        ctx.title, ctx.description, ctx.technical_domain, ctx.novelty_score,
+        ctx.title,
+        ctx.description,
+        ctx.technical_domain,
+        ctx.novelty_score,
         &ctx.ai_analysis.chars().take(800).collect::<String>(),
     );
 
@@ -33,9 +32,12 @@ pub async fn execute(
         }
     };
 
-    let cleaned = response.trim()
-        .trim_start_matches("```json").trim_start_matches("```")
-        .trim_end_matches("```").trim();
+    let cleaned = response
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
 
     let parsed: serde_json::Value = match serde_json::from_str(cleaned) {
         Ok(v) => v,
@@ -83,6 +85,10 @@ pub async fn execute(
         }
     }
 
-    tracing::info!("ClaimTree 构建完成: {} 条权利要求 (idea: {})", claims.len().min(10), ctx.idea_id);
+    tracing::info!(
+        "ClaimTree 构建完成: {} 条权利要求 (idea: {})",
+        claims.len().min(10),
+        ctx.idea_id
+    );
     Ok(())
 }

@@ -10,11 +10,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 /// 执行实验验证步骤
-pub async fn execute(
-    ctx: &mut PipelineContext,
-    ai: &AiClient,
-    db: &Arc<Database>,
-) -> Result<()> {
+pub async fn execute(ctx: &mut PipelineContext, ai: &AiClient, db: &Arc<Database>) -> Result<()> {
     // 1. AI 生成验证脚本
     tracing::info!("生成实验验证脚本...");
     let spec = match generator::generate_experiment(ctx, ai).await {
@@ -38,7 +34,11 @@ pub async fn execute(
     };
 
     // 3. 记录结果
-    let finding_type = if result.success { "experiment_result" } else { "dead_end" };
+    let finding_type = if result.success {
+        "experiment_result"
+    } else {
+        "dead_end"
+    };
     let title = if result.success {
         format!("实验成功: {}", spec.title)
     } else {

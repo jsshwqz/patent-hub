@@ -423,7 +423,10 @@ fn feature_card_insert_and_retrieve() {
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].id, "fc1");
     assert_eq!(cards[0].title, "Novel heat dissipation method");
-    assert_eq!(cards[0].description, "Uses graphene layer for thermal conductivity");
+    assert_eq!(
+        cards[0].description,
+        "Uses graphene layer for thermal conductivity"
+    );
     assert_eq!(cards[0].novelty_score, Some(85.5));
 }
 
@@ -605,9 +608,12 @@ fn batch_idea_get_multiple() {
         discussion_summary: String::new(),
     };
 
-    db.insert_idea(&make_idea("b1", "Battery tech", Some(80.0))).unwrap();
-    db.insert_idea(&make_idea("b2", "Solar panel", Some(60.0))).unwrap();
-    db.insert_idea(&make_idea("b3", "Wind turbine", None)).unwrap();
+    db.insert_idea(&make_idea("b1", "Battery tech", Some(80.0)))
+        .unwrap();
+    db.insert_idea(&make_idea("b2", "Solar panel", Some(60.0)))
+        .unwrap();
+    db.insert_idea(&make_idea("b3", "Wind turbine", None))
+        .unwrap();
 
     let i1 = db.get_idea("b1").unwrap().unwrap();
     assert_eq!(i1.title, "Battery tech");
@@ -641,7 +647,16 @@ async fn prior_art_cluster_integration_with_sample_ranked_results() {
             source_url: "https://example.com/p1".into(),
             snippet: "Deep learning for parking spot recognition".into(),
             combined_score: 0.85,
-            tokens: vec!["neural".into(), "network".into(), "parking".into(), "detection".into(), "deep".into(), "learning".into(), "spot".into(), "recognition".into()],
+            tokens: vec![
+                "neural".into(),
+                "network".into(),
+                "parking".into(),
+                "detection".into(),
+                "deep".into(),
+                "learning".into(),
+                "spot".into(),
+                "recognition".into(),
+            ],
         },
         RankedMatch {
             rank: 2,
@@ -651,7 +666,17 @@ async fn prior_art_cluster_integration_with_sample_ranked_results() {
             source_url: "https://example.com/p2".into(),
             snippet: "CNN-based parking lot monitoring with neural networks".into(),
             combined_score: 0.80,
-            tokens: vec!["deep".into(), "learning".into(), "vehicle".into(), "detection".into(), "system".into(), "cnn".into(), "parking".into(), "neural".into(), "networks".into()],
+            tokens: vec![
+                "deep".into(),
+                "learning".into(),
+                "vehicle".into(),
+                "detection".into(),
+                "system".into(),
+                "cnn".into(),
+                "parking".into(),
+                "neural".into(),
+                "networks".into(),
+            ],
         },
         RankedMatch {
             rank: 3,
@@ -661,7 +686,14 @@ async fn prior_art_cluster_integration_with_sample_ranked_results() {
             source_url: "https://example.com/p3".into(),
             snippet: "分布式账本技术用于停车场计费".into(),
             combined_score: 0.60,
-            tokens: vec!["区块链".into(), "停车费".into(), "支付".into(), "系统".into(), "分布式".into(), "账本".into()],
+            tokens: vec![
+                "区块链".into(),
+                "停车费".into(),
+                "支付".into(),
+                "系统".into(),
+                "分布式".into(),
+                "账本".into(),
+            ],
         },
         RankedMatch {
             rank: 4,
@@ -671,7 +703,16 @@ async fn prior_art_cluster_integration_with_sample_ranked_results() {
             source_url: "https://example.com/p4".into(),
             snippet: "Ultrasonic and infrared sensors for occupancy detection".into(),
             combined_score: 0.55,
-            tokens: vec!["iot".into(), "sensor".into(), "array".into(), "smart".into(), "parking".into(), "ultrasonic".into(), "infrared".into(), "occupancy".into()],
+            tokens: vec![
+                "iot".into(),
+                "sensor".into(),
+                "array".into(),
+                "smart".into(),
+                "parking".into(),
+                "ultrasonic".into(),
+                "infrared".into(),
+                "occupancy".into(),
+            ],
         },
     ];
 
@@ -680,15 +721,34 @@ async fn prior_art_cluster_integration_with_sample_ranked_results() {
     // p1 and p2 share many tokens (neural, deep, learning, parking, detection) — should cluster
     // p3 is blockchain-related — separate cluster
     // p4 is IoT sensor — only shares "parking" with p1/p2, low Jaccard — separate cluster
-    assert!(ctx.prior_art_clusters.len() >= 2, "Expected at least 2 clusters, got {}", ctx.prior_art_clusters.len());
+    assert!(
+        ctx.prior_art_clusters.len() >= 2,
+        "Expected at least 2 clusters, got {}",
+        ctx.prior_art_clusters.len()
+    );
 
     // Verify the neural-network cluster has p1 and p2
-    let nn_cluster = ctx.prior_art_clusters.iter().find(|c| c.patent_indices.contains(&0)).unwrap();
-    assert!(nn_cluster.patent_indices.contains(&1), "p2 should be in same cluster as p1");
+    let nn_cluster = ctx
+        .prior_art_clusters
+        .iter()
+        .find(|c| c.patent_indices.contains(&0))
+        .unwrap();
+    assert!(
+        nn_cluster.patent_indices.contains(&1),
+        "p2 should be in same cluster as p1"
+    );
 
     // Verify blockchain item is in its own cluster
-    let bc_cluster = ctx.prior_art_clusters.iter().find(|c| c.patent_indices.contains(&2)).unwrap();
-    assert_eq!(bc_cluster.patent_indices.len(), 1, "Blockchain item should be in its own cluster");
+    let bc_cluster = ctx
+        .prior_art_clusters
+        .iter()
+        .find(|c| c.patent_indices.contains(&2))
+        .unwrap();
+    assert_eq!(
+        bc_cluster.patent_indices.len(),
+        1,
+        "Blockchain item should be in its own cluster"
+    );
 
     // Verify avg_similarity is computed correctly for the nn cluster
     let expected_avg = (0.85 + 0.80) / 2.0;

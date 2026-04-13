@@ -1,6 +1,6 @@
+use crate::patent::{FeatureCard, Idea, IdeaSummary};
 use anyhow::Result;
 use rusqlite::{params, OptionalExtension};
-use crate::patent::{FeatureCard, Idea, IdeaSummary};
 
 impl super::Database {
     // ── Idea CRUD ─────────────────────────────────────────────────────────────
@@ -269,7 +269,12 @@ impl super::Database {
     // ── 管道断点快照 / Pipeline Snapshots ──────────────────────────────────
 
     /// 保存管道执行快照（每步完成后调用）/ Save pipeline snapshot after each step
-    pub fn save_pipeline_snapshot(&self, idea_id: &str, context_json: &str, current_step: &str) -> Result<()> {
+    pub fn save_pipeline_snapshot(
+        &self,
+        idea_id: &str,
+        context_json: &str,
+        current_step: &str,
+    ) -> Result<()> {
         let c = self.conn();
         c.execute(
             "INSERT OR REPLACE INTO pipeline_snapshots (idea_id, context_json, current_step, updated_at) \
@@ -286,7 +291,9 @@ impl super::Database {
             "SELECT context_json, current_step FROM pipeline_snapshots WHERE idea_id = ?1",
         )?;
         let result = stmt
-            .query_row(params![idea_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .query_row(params![idea_id], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })
             .ok();
         Ok(result)
     }
@@ -294,7 +301,10 @@ impl super::Database {
     /// 删除管道快照（完成后清理）/ Delete snapshot after pipeline completes
     pub fn delete_pipeline_snapshot(&self, idea_id: &str) -> Result<()> {
         let c = self.conn();
-        c.execute("DELETE FROM pipeline_snapshots WHERE idea_id = ?1", params![idea_id])?;
+        c.execute(
+            "DELETE FROM pipeline_snapshots WHERE idea_id = ?1",
+            params![idea_id],
+        )?;
         Ok(())
     }
 }

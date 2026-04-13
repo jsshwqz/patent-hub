@@ -95,10 +95,16 @@ impl Orchestrator {
             if self.quick_mode && step.skipped_in_quick_mode() {
                 self.send_progress(&progress_tx, &step, StepStatus::Skipped);
                 ctx.step_results.push(StepResult {
-                    step, duration_ms: 0, status: "skipped".into(), error: None,
+                    step,
+                    duration_ms: 0,
+                    status: "skipped".into(),
+                    error: None,
                 });
                 match self.decide_next(&ctx, step) {
-                    Some(next) => { ctx.current_step = next; continue; }
+                    Some(next) => {
+                        ctx.current_step = next;
+                        continue;
+                    }
                     None => break,
                 }
             }
@@ -113,7 +119,11 @@ impl Orchestrator {
             ctx.step_results.push(StepResult {
                 step,
                 duration_ms,
-                status: if result.is_ok() { "ok".into() } else { "error".into() },
+                status: if result.is_ok() {
+                    "ok".into()
+                } else {
+                    "error".into()
+                },
                 error: result.as_ref().err().map(|e| e.to_string()),
             });
 
@@ -124,7 +134,9 @@ impl Orchestrator {
                     // 保存快照（断点续跑）
                     if let Ok(json) = serde_json::to_string(&ctx) {
                         let _ = self.db.save_pipeline_snapshot(
-                            &ctx.idea_id, &json, &format!("{:?}", step),
+                            &ctx.idea_id,
+                            &json,
+                            &format!("{:?}", step),
                         );
                     }
                     // 写入版本历史
@@ -134,7 +146,11 @@ impl Orchestrator {
                     if step.is_critical() {
                         self.send_progress(&progress_tx, &step, StepStatus::Error);
                         super::record_failure(&self.db, &ctx, step, &e.to_string());
-                        return Err(anyhow::anyhow!("关键步骤「{}」失败: {}", step.description(), e));
+                        return Err(anyhow::anyhow!(
+                            "关键步骤「{}」失败: {}",
+                            step.description(),
+                            e
+                        ));
                     }
                     tracing::warn!("非关键步骤 {:?} 失败: {}，跳过继续", step, e);
                     super::record_failure(&self.db, &ctx, step, &e.to_string());
@@ -209,10 +225,12 @@ impl Orchestrator {
             PipelineStep::ParseInput => steps::parse::execute(ctx).await,
             PipelineStep::ExpandQuery => steps::expand::execute(ctx, &self.ai_client).await,
             PipelineStep::SearchWeb => {
-                steps::search::search_web(ctx, &self.serpapi_key, &self.bing_api_key, &self.db).await
+                steps::search::search_web(ctx, &self.serpapi_key, &self.bing_api_key, &self.db)
+                    .await
             }
             PipelineStep::SearchPatents => {
-                steps::search::search_patents(ctx, &self.serpapi_key, &self.lens_api_key, &self.db).await
+                steps::search::search_patents(ctx, &self.serpapi_key, &self.lens_api_key, &self.db)
+                    .await
             }
             PipelineStep::DiversityGate => {
                 let r = steps::diversity::execute(ctx).await;
@@ -233,7 +251,9 @@ impl Orchestrator {
                 let result = steps::analysis::action_plan(ctx, &self.ai_client).await;
                 if result.is_ok() {
                     let _ = steps::analysis::extract_feature_cards(ctx, &self.db).await;
-                    let _ = steps::analysis::extract_feature_cards_ai(ctx, &self.ai_client, &self.db).await;
+                    let _ =
+                        steps::analysis::extract_feature_cards_ai(ctx, &self.ai_client, &self.db)
+                            .await;
                 }
                 result
             }
