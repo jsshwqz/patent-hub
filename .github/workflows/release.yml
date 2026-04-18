@@ -65,7 +65,9 @@ jobs:
           BIN_DIR="target/${{ matrix.target }}/release"
           mkdir -p pkg
           cp "$BIN_DIR/innoforge"    pkg/
-          cp "$BIN_DIR/skill-router"  pkg/
+          if [ -f "$BIN_DIR/skill-router" ]; then
+            cp "$BIN_DIR/skill-router" pkg/
+          fi
           cp -r templates static .env.example pkg/
           [ -f README.md ] && cp README.md pkg/ || true
           [ -f LICENSE ] && cp LICENSE pkg/ || true
@@ -75,7 +77,8 @@ jobs:
           cd "$(dirname "$0")"
           ./innoforge
           EOF
-          chmod +x pkg/start.sh pkg/innoforge pkg/skill-router
+          chmod +x pkg/start.sh pkg/innoforge
+          [ -f pkg/skill-router ] && chmod +x pkg/skill-router || true
 
           cat > pkg/USAGE.txt << 'EOF'
           # InnoForge 创研台 + Skill Router / 使用说明
@@ -104,7 +107,7 @@ jobs:
           $binDir = "target\${{ matrix.target }}\release"
           New-Item -ItemType Directory -Path pkg -Force | Out-Null
           Copy-Item "$binDir\innoforge.exe"   pkg\
-          Copy-Item "$binDir\skill-router.exe" pkg\
+          if (Test-Path "$binDir\skill-router.exe") { Copy-Item "$binDir\skill-router.exe" pkg\ }
           Copy-Item -Recurse templates, static pkg\
           Copy-Item .env.example pkg\
           if (Test-Path README.md) { Copy-Item README.md pkg\ }

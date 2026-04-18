@@ -121,7 +121,7 @@ pub async fn api_search(
         let mut groups: Vec<CategoryGroup> = Vec::new();
         // Top applicants
         let mut app_list: Vec<_> = by_applicant.into_iter().collect();
-        app_list.sort_by(|a, b| b.1.cmp(&a.1));
+        app_list.sort_by_key(|item| std::cmp::Reverse(item.1));
         for (name, count) in app_list.iter().take(5) {
             if *count >= 2 {
                 groups.push(CategoryGroup {
@@ -132,7 +132,7 @@ pub async fn api_search(
         }
         // Countries
         let mut country_list: Vec<_> = by_country.into_iter().collect();
-        country_list.sort_by(|a, b| b.1.cmp(&a.1));
+        country_list.sort_by_key(|item| std::cmp::Reverse(item.1));
         for (name, count) in country_list.iter().take(5) {
             groups.push(CategoryGroup {
                 label: format!("国家: {}", name),
@@ -785,11 +785,11 @@ pub async fn api_search_stats(
     }
 
     let mut applicants: Vec<_> = applicant_counts.into_iter().collect();
-    applicants.sort_by(|a, b| b.1.cmp(&a.1));
+    applicants.sort_by_key(|item| std::cmp::Reverse(item.1));
     let top_applicants: Vec<_> = applicants.into_iter().take(10).collect();
 
     let mut countries: Vec<_> = country_counts.into_iter().collect();
-    countries.sort_by(|a, b| b.1.cmp(&a.1));
+    countries.sort_by_key(|item| std::cmp::Reverse(item.1));
 
     let mut years: Vec<_> = year_counts.into_iter().collect();
     years.sort_by(|a, b| a.0.cmp(&b.0));

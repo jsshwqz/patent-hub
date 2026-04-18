@@ -94,7 +94,7 @@ fn extract_keywords(text: &str, max_keywords: usize) -> Vec<String> {
     }
 
     let mut sorted: Vec<_> = freq.into_iter().collect();
-    sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted.sort_by_key(|item| std::cmp::Reverse(item.1));
 
     sorted
         .into_iter()
