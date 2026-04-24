@@ -13,6 +13,9 @@ use reqwest::Client;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
+
+const SEARCH_UPSTREAM_TIMEOUT_SECS: u64 = 8;
 
 /// 计算查询哈希（用于缓存键）/ Compute query hash for cache key
 fn query_hash(query: &str, source: &str) -> String {
@@ -68,7 +71,10 @@ pub async fn search_web(
         return Ok(());
     }
 
-    let client = Client::new();
+    let client = Client::builder()
+        .timeout(Duration::from_secs(SEARCH_UPSTREAM_TIMEOUT_SECS))
+        .build()
+        .unwrap_or_else(|_| Client::new());
     let mut all_results = Vec::new();
     let mut seen_urls: HashSet<String> = HashSet::new();
 
@@ -214,7 +220,10 @@ pub async fn search_patents(
 
     // SerpAPI Google Patents 搜索
     if !serpapi_key.is_empty() && serpapi_key != "your-serpapi-key-here" {
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(Duration::from_secs(SEARCH_UPSTREAM_TIMEOUT_SECS))
+            .build()
+            .unwrap_or_else(|_| Client::new());
         for query in ctx.expanded_queries.iter().take(2) {
             let resp = client
                 .get("https://serpapi.com/search.json")
@@ -342,7 +351,7 @@ async fn search_lens_raw(query: &str, api_key: &str) -> Result<serde_json::Value
         ]
     });
     let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(SEARCH_UPSTREAM_TIMEOUT_SECS))
         .build()
         .map_err(|e| e.to_string())?;
     let resp = client
@@ -371,7 +380,7 @@ struct SogouResultItem {
 /// 搜狗搜索（pipeline 用，零配置，国内可用）
 async fn search_sogou_pipeline(query: &str) -> Result<Vec<SogouResultItem>, String> {
     let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(SEARCH_UPSTREAM_TIMEOUT_SECS))
         .build()
         .map_err(|e| e.to_string())?;
 

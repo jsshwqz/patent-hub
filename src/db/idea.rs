@@ -78,6 +78,59 @@ impl super::Database {
         Ok(())
     }
 
+    /// 强制级联清理一个创意及其全部关联数据（历史/版本/证据/快照/权利树等）
+    /// 使用单事务保证要么全部删除成功，要么全部回滚。
+    pub fn purge_idea(&self, idea_id: &str) -> Result<()> {
+        let mut c = self.conn();
+        let _ = c.busy_timeout(std::time::Duration::from_secs(3));
+        let tx = c.transaction()?;
+
+        // claim_nodes -> technical_features 为反向依赖，先删子表
+        tx.execute(
+            "DELETE FROM technical_features WHERE claim_id IN (SELECT id FROM claim_nodes WHERE idea_id=?1)",
+            params![idea_id],
+        )?;
+        tx.execute("DELETE FROM claim_nodes WHERE idea_id=?1", params![idea_id])?;
+
+        tx.execute("DELETE FROM findings WHERE idea_id=?1", params![idea_id])?;
+        tx.execute(
+            "DELETE FROM idea_versions WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+        tx.execute(
+            "DELETE FROM idea_branches WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+        tx.execute(
+            "DELETE FROM evidence_chain WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+        tx.execute(
+            "DELETE FROM idea_research_state WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+        tx.execute(
+            "DELETE FROM feature_cards WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+        tx.execute(
+            "DELETE FROM idea_messages WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+        tx.execute(
+            "DELETE FROM pipeline_snapshots WHERE idea_id=?1",
+            params![idea_id],
+        )?;
+
+        let deleted = tx.execute("DELETE FROM ideas WHERE id=?1", params![idea_id])?;
+        if deleted == 0 {
+            return Err(anyhow::anyhow!("创意不存在或已删除"));
+        }
+
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn delete_idea_messages(&self, idea_id: &str) -> Result<()> {
         let c = self.conn();
         c.execute(

@@ -32,6 +32,13 @@ image_*.png
 # 运行时产物 / Runtime artifacts
 *.log
 docs/self-review/
+logs/
+uploads/
+docs/visible-e2e-runs/
+docs/depth-gate-runs/
+tools/__pycache__/
+tmp_real_regression_test.py
+hotfix_v053.patch
 
 # AI 生成的报告和临时产物 / AI-generated reports and temp artifacts
 辩论报告*.md

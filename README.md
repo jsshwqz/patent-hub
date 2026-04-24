@@ -22,6 +22,7 @@
 | Docker | `docker run -p 3000:3000 jsshwqz/innoforge` | 同左 |
 
 > 下载解压后运行（Windows `start.bat` / Linux `./start.sh`），打开 http://127.0.0.1:3000 即可使用。无需安装数据库。
+> 若本机 `3000` 端口被系统占用/保留，可设置环境变量 `INNOFORGE_PORT`（如 `3900`）后启动。
 
 ---
 
@@ -44,11 +45,8 @@
 
 | 数据源 | 覆盖范围 | 国内直连 | 特点 |
 |--------|---------|---------|------|
-| CNIPR（国知局） | 中国专利 | 是 | 权威数据 + 法律状态 |
 | SerpAPI | 全球专利 | 需 VPN | Google Patents 聚合 |
-| Lens.org | 全球专利 | 是 | 开放数据库 |
 | Google Patents | 全球专利 | 需 VPN | 免费直查 |
-| 搜狗搜索 | 中文网页 | 是 | 免费兜底方案 |
 | 本地数据库 | 已缓存数据 | 是 | 离线可用 |
 
 ### 3. AI 深度分析
@@ -109,11 +107,11 @@ docker run -p 3000:3000 -v innoforge-data:/data innoforge
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | 数据库 | `innoforge.db` | SQLite 数据库文件路径 |
-| 服务地址 | `127.0.0.1:3000` | 本地监听地址 |
+| 服务地址 | `127.0.0.1:3000` | 本地监听地址（可用 `INNOFORGE_PORT` 覆盖） |
 
 所有设置均可通过**设置页面**（http://localhost:3000/settings）在线配置，也可编辑 `.env` 文件。
 
-**没有 API 密钥也能用** -- 检索使用本地数据库，AI 功能会显示配置引导。
+**没有 API 密钥也能用** -- 检索可直接使用本地数据库。无法获得 CNIPR 授权时，建议导入公开公告数据包作为本地主链路（见下方指南）。
 
 ### AI 服务商（任选一个）
 
@@ -131,9 +129,8 @@ docker run -p 3000:3000 -v innoforge-data:/data innoforge
 
 | 变量 | 说明 |
 |------|------|
-| `CNIPR_USER` / `CNIPR_PASSWORD` | [国知局开放平台](https://open.cnipr.com/) 账号，中国专利权威数据 |
 | `SERPAPI_KEY` | [SerpAPI](https://serpapi.com/) 密钥，100次/月免费 |
-| `LENS_API_KEY` | [Lens.org](https://www.lens.org/) Token，国内可用 |
+| `CNIPR_USER` / `CNIPR_PASSWORD` | 兼容保留（当前默认在线链路不依赖该配置） |
 
 ---
 
@@ -197,7 +194,7 @@ innoforge/
 - **后端**：Rust + Axum + SQLite（内嵌，零配置）
 - **前端**：原生 HTML/CSS/JS（无需构建工具）
 - **AI**：兼容任意 OpenAI API + 6 服务商自动容灾
-- **搜索**：CNIPR + SerpAPI + Lens.org + Google Patents + 搜狗（5 源级联回退）
+- **搜索**：CNIPR + SerpAPI + Google Patents + 本地库（级联回退）
 - **移动端**：Rust cdylib + JNI (Android) / FFI (iOS) + WebView
 - **国际化**：中英双语
 
@@ -218,7 +215,7 @@ innoforge/
 ### 第三方服务
 
 - [Chart.js](https://www.chartjs.org/) v4 (MIT) -- 图表可视化
-- [SerpAPI](https://serpapi.com/) / [Lens.org](https://www.lens.org/) / [CNIPR](https://open.cnipr.com/) -- 专利数据源
+- [SerpAPI](https://serpapi.com/) / [CNIPR](https://open.cnipr.com/) -- 专利数据源
 
 ---
 
@@ -255,7 +252,7 @@ Most products don't fail at the implementation stage -- they fail much earlier: 
 ### Core Features
 
 - **13-Step Validation Pipeline** -- From idea to feasibility report, fully automated: keyword extraction, global patent search, similarity analysis, risk assessment, innovation scoring
-- **Multi-Source Patent Search** -- CNIPR (China), SerpAPI (Google Patents), Lens.org, Google Patents Direct, Sogou -- cascading fallback ensures results in any network environment
+- **Multi-Source Patent Search** -- CNIPR (China), SerpAPI (Google Patents), Google Patents Direct, Local DB -- cascading fallback ensures results in any network environment
 - **AI Deep Analysis** -- Patent summarization, side-by-side comparison, infringement risk assessment, multi-round Q&A
 - **Practical Tools** -- Collections & tags, CSV/Excel/PDF export, bilingual UI (Chinese/English)
 - **AI Failover** -- 7+ AI providers with automatic failover (Zhipu GLM, DeepSeek, OpenRouter, Gemini, OpenAI, NVIDIA, Ollama)
@@ -295,7 +292,7 @@ All settings configurable via **Settings page** (http://localhost:3000/settings)
 - **Backend**: Rust + Axum + SQLite (embedded, zero-config)
 - **Frontend**: Vanilla HTML/CSS/JS (no build tools)
 - **AI**: Any OpenAI-compatible API + 6-provider automatic failover
-- **Search**: CNIPR + SerpAPI + Lens.org + Google Patents + Sogou (5-source cascade)
+- **Search**: CNIPR + SerpAPI + Google Patents + Local DB (cascade fallback)
 - **Mobile**: Rust cdylib/staticlib + JNI (Android) / FFI (iOS)
 - **i18n**: Chinese/English bilingual
 

@@ -103,10 +103,9 @@
         <h2>系统设置</h2>
 
         <div class="setting-group">
-            <h3>🇨🇳 CNIPR 国知局专利搜索（推荐）</h3>
-            <p>接入国家知识产权局 CNIPR 开放平台，获取最权威的中国专利数据，包括法律状态、审核进度等详细信息。</p>
-            <p style="color:#4ade80;font-size:13px;">搜索中文关键词或 CN 开头的专利号时自动优先使用 CNIPR 数据源。</p>
-            <p style="color:#8b949e;font-size:13px;">应用凭据已内置，只需填写你的 CNIPR 个人登录账号即可使用。</p>
+            <h3>🇨🇳 CNIPR 国知局专利搜索（兼容保留）</h3>
+            <p>该配置项保留用于兼容历史版本。</p>
+            <p style="color:#f0ad4e;font-size:13px;">当前在线检索主链路默认使用国外数据源（SerpAPI / Google Patents），不再优先走 CNIPR。</p>
 
             <div class="form-group">
                 <label>登录账号</label>
@@ -136,11 +135,11 @@
         </div>
 
         <div class="setting-group">
-            <h3>🔍 其他搜索配置（国内无需 VPN）</h3>
-            <p>可选配置，用于补充国际专利搜索和网页搜索能力。</p>
+            <h3>🔍 搜索配置（国外数据源）</h3>
+            <p>在线检索当前默认优先使用国外数据源链路。</p>
 
             <div class="form-group">
-                <label>Bing Web Search API Key <span style="color:#4ade80;font-size:12px;">（网页搜索，替代 SerpAPI）</span></label>
+                <label>Bing Web Search API Key <span style="color:#8b949e;font-size:12px;">（可选网页搜索）</span></label>
                 <input type="text" id="bing-api-key" placeholder="输入 Azure Bing Search API Key">
                 <a href="https://www.microsoft.com/en-us/bing/apis/bing-web-search-api" target="_blank" class="help-link">
                     → 注册 Azure 获取免费 Key（每月 1000 次）
@@ -149,15 +148,6 @@
             <button class="btn-save" onclick="saveBingKey()">保存 Bing Key</button>
             <div id="bing-status" class="status-message"></div>
 
-            <div class="form-group" style="margin-top:20px;">
-                <label>Lens.org API Key <span style="color:#4ade80;font-size:12px;">（专利搜索，替代 Google Patents）</span></label>
-                <input type="text" id="lens-api-key" placeholder="输入 Lens.org API Token">
-                <a href="https://www.lens.org/lens/user/subscriptions" target="_blank" class="help-link">
-                    → 注册 Lens.org 获取免费 API Token（全球专利库）
-                </a>
-            </div>
-            <button class="btn-save" onclick="saveLensKey()">保存 Lens Key</button>
-            <div id="lens-status" class="status-message"></div>
         </div>
 
         <div class="setting-group">
@@ -242,6 +232,7 @@
 
         // 页面加载时获取当前配置
         let returnUrl = ''; // 记录返回地址
+        let loadedConfig = null;
         
         window.onload = async function() {
             // 从 URL 参数获取返回地址
@@ -252,9 +243,9 @@
                 const res = await fetch('/api/settings');
                 if (res.ok) {
                     const config = await res.json();
+                    loadedConfig = config;
                     document.getElementById('serpapi-key').value = config.serpapi_key || '';
                     document.getElementById('bing-api-key').value = config.bing_api_key || '';
-                    document.getElementById('lens-api-key').value = config.lens_api_key || '';
                     document.getElementById('cnipr-client-id').value = config.cnipr_client_id || '';
                     document.getElementById('cnipr-user').value = config.cnipr_user || '';
                     if (config.cnipr_password) document.getElementById('cnipr-password').value = config.cnipr_password;
@@ -284,12 +275,12 @@
                         providerSelect.value = 'custom';
                     }
                 }
-            // Load saved fallback providers
-            if (config.ai_fallbacks && config.ai_fallbacks.length > 0) {
-                config.ai_fallbacks.forEach(function(fb) {
-                    addFallbackRow(fb.name || '', fb.base_url || '', '', fb.model || '');
-                });
-            }
+                // Load saved fallback providers
+                if (loadedConfig && loadedConfig.ai_fallbacks && loadedConfig.ai_fallbacks.length > 0) {
+                    loadedConfig.ai_fallbacks.forEach(function(fb) {
+                        addFallbackRow(fb.name || '', fb.base_url || '', '', fb.model || '');
+                    });
+                }
             } catch (e) {
                 console.error('Failed to load config:', e);
             }
@@ -308,21 +299,17 @@
         function updateConfigStatus(config) {
             const status = [];
 
-            // CNIPR 国知局
-            if (config.cnipr_configured) {
-                status.push('✅ CNIPR 国知局已配置（中国专利权威数据）');
-            }
-
             // 在线专利搜索能力
             if (config.serpapi_key_configured) {
-                status.push('✅ SerpAPI 已配置（Google Patents，需 VPN）');
-            } else if (config.bing_api_key_configured || config.lens_api_key_configured) {
+                status.push('✅ SerpAPI 已配置（Google Patents）');
+            }
+            if (!config.serpapi_key_configured && config.bing_api_key_configured) {
                 const parts = [];
                 if (config.bing_api_key_configured) parts.push('Bing 网页搜索');
-                if (config.lens_api_key_configured) parts.push('Lens.org 专利搜索');
-                status.push('✅ 国内搜索已配置（' + parts.join(' + ') + '，无需 VPN）');
-            } else if (!config.cnipr_configured) {
-                status.push('⚠️ 在线搜索未配置（仅本地数据库）');
+                status.push('✅ 备用搜索已配置（' + parts.join(' + ') + '）');
+            }
+            if (!config.serpapi_key_configured) {
+                status.push('⚠️ 国外在线专利搜索未配置（将回退本地数据库）');
             }
 
             if (config.ai_api_key_configured) {
@@ -371,26 +358,6 @@
                 statusEl.textContent = data.status === 'ok' ? (user ? '✅ CNIPR 配置已保存' : '✅ CNIPR 配置已清除') : ('❌ ' + data.message);
                 statusEl.style.display = 'block';
                 setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
-            } catch(e) {
-                statusEl.className = 'status-message error';
-                statusEl.textContent = '❌ 保存失败: ' + e.message;
-                statusEl.style.display = 'block';
-            }
-        }
-
-        async function saveLensKey() {
-            const key = document.getElementById('lens-api-key').value.trim();
-            const statusEl = document.getElementById('lens-status');
-            try {
-                const res = await fetch('/api/settings/lens', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({api_key: key})
-                });
-                const data = await res.json();
-                statusEl.className = 'status-message ' + (data.status === 'ok' ? 'success' : 'error');
-                statusEl.textContent = data.status === 'ok' ? (key ? '✅ Lens Key 已保存' : '✅ Lens Key 已清除') : ('❌ ' + data.message);
-                statusEl.style.display = 'block';
             } catch(e) {
                 statusEl.className = 'status-message error';
                 statusEl.textContent = '❌ 保存失败: ' + e.message;

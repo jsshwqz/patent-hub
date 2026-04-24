@@ -6,21 +6,45 @@ use rusqlite::{params, OptionalExtension};
 impl super::Database {
     pub fn insert_patent(&self, p: &Patent) -> Result<()> {
         let c = self.conn();
+        let canonical = crate::patent::canonical_patent_key(&p.patent_number);
+        let mut final_id = p.id.clone();
+
+        // Reuse existing row id for same canonical publication key to avoid duplicate rows.
+        if !canonical.is_empty() {
+            let mut stmt = c.prepare(
+                "SELECT id, patent_number FROM patents
+                 WHERE patent_number LIKE ?1
+                    OR REPLACE(REPLACE(UPPER(patent_number), ' ', ''), '.', '') LIKE ?2
+                 LIMIT 200",
+            )?;
+            let fuzzy_like = format!("%{}%", p.patent_number.chars().take(2).collect::<String>());
+            let canonical_like = format!("%{}%", canonical);
+            let mut rows = stmt.query(params![fuzzy_like, canonical_like])?;
+            while let Some(row) = rows.next()? {
+                let existing_id: String = row.get(0)?;
+                let existing_number: String = row.get(1)?;
+                if crate::patent::canonical_patent_key(&existing_number) == canonical {
+                    final_id = existing_id;
+                    break;
+                }
+            }
+        }
+
         // Delete old FTS entry if replacing
         if let Err(e) = c.execute(
             "DELETE FROM patents_fts WHERE rowid = (SELECT rowid FROM patents WHERE id = ?1)",
-            params![p.id],
+            params![final_id],
         ) {
-            tracing::warn!("FTS delete for patent {} failed: {}", p.id, e);
+            tracing::warn!("FTS delete for patent {} failed: {}", final_id, e);
         }
         c.execute("INSERT OR REPLACE INTO patents (id,patent_number,title,abstract_text,description,claims,applicant,inventor,filing_date,publication_date,grant_date,ipc_codes,cpc_codes,priority_date,country,kind_code,family_id,legal_status,citations,cited_by,source,raw_json,images,pdf_url) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)",
-            params![p.id,p.patent_number,p.title,p.abstract_text,p.description,p.claims,p.applicant,p.inventor,p.filing_date,p.publication_date,p.grant_date,p.ipc_codes,p.cpc_codes,p.priority_date,p.country,p.kind_code,p.family_id,p.legal_status,p.citations,p.cited_by,p.source,p.raw_json,p.images,p.pdf_url])?;
+            params![final_id,p.patent_number,p.title,p.abstract_text,p.description,p.claims,p.applicant,p.inventor,p.filing_date,p.publication_date,p.grant_date,p.ipc_codes,p.cpc_codes,p.priority_date,p.country,p.kind_code,p.family_id,p.legal_status,p.citations,p.cited_by,p.source,p.raw_json,p.images,p.pdf_url])?;
         // Insert single row into FTS index (incremental, not full rebuild)
         if let Err(e) = c.execute(
             "INSERT INTO patents_fts(rowid, patent_number, title, abstract_text, claims, applicant, inventor, ipc_codes) SELECT rowid, patent_number, title, abstract_text, claims, applicant, inventor, ipc_codes FROM patents WHERE id = ?1",
-            params![p.id],
+            params![final_id],
         ) {
-            tracing::warn!("FTS insert for patent {} failed: {}", p.id, e);
+            tracing::warn!("FTS insert for patent {} failed: {}", final_id, e);
         }
         Ok(())
     }

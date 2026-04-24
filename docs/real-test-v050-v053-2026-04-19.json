@@ -1,0 +1,1602 @@
+[
+  {
+    "version": "v0.5.0",
+    "boot_ok": true,
+    "api": {
+      "cases": [
+        {
+          "name": "GET settings",
+          "url": "/api/settings",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"ai_api_key\":\"smok****nput\",\"ai_api_key_configured\":true,\"ai_base_url\":\"https://open.bigmodel.cn/api/paas/v4\",\"ai_fallbacks\":[{\"api_key\":\"OPEN****3456\",\"base_url\":\"https://openrouter.ai/api/v1\",\"model\":\"google/gemini-2."
+        },
+        {
+          "name": "POST save serpapi",
+          "url": "/api/settings/serpapi",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save bing",
+          "url": "/api/settings/bing",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save lens",
+          "url": "/api/settings/lens",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save ai",
+          "url": "/api/settings/ai",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save fallbacks",
+          "url": "/api/settings/fallbacks",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"message\":\"已保存 1 个备用 AI\",\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST import patent",
+          "url": "/api/patents/import",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"imported\":1,\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST search local",
+          "url": "/api/search",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"patents\":[{\"id\":\"f5927339-2f09-47a0-b3b6-36b2bbc9bb8f\",\"patent_number\":\"CN121540857A\",\"title\":\"面向燃氢航空发动机燃烧室的尾气分析测试系统、运行方法及分析测试方法\",\"abstract_text\":\"The invention provides a tail gas analysis test system, an operation me"
+        },
+        {
+          "name": "POST ai chat",
+          "url": "/api/ai/chat",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"content\":\"AI error: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai compare",
+          "url": "/api/ai/compare",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"content\":\"AI error: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai compare-matrix",
+          "url": "/api/ai/compare-matrix",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"对比失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai inventiveness",
+          "url": "/api/ai/inventiveness-analysis",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"创造性分析失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai office-action",
+          "url": "/api/ai/office-action-response",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"分析失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST idea submit",
+          "url": "/api/idea/submit",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"id\":\"041443a8-e524-40ea-918f-15943f76afa6\",\"status\":\"ok\"}"
+        },
+        {
+          "name": "GET idea by id",
+          "url": "/api/idea/041443a8-e524-40ea-918f-15943f76afa6",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"idea\":{\"analysis\":\"\",\"can_rerun\":true,\"created_at\":\"2026-04-18T16:16:00Z\",\"description\":\"用于页面按钮回归测试\",\"discussion_summary\":\"\",\"has_snapshot\":false,\"id\":\"041443a8-e524-40ea-918f-15943f76afa6\",\"novelty_score\":null,\"patent"
+        },
+        {
+          "name": "GET idea report",
+          "url": "/api/idea/041443a8-e524-40ea-918f-15943f76afa6/report",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"report\":{\"analysis\":\"\",\"created_at\":\"2026-04-18T16:16:00Z\",\"description\":\"用于页面按钮回归测试\",\"id\":\"041443a8-e524-40ea-918f-15943f76afa6\",\"novelty_score\":null,\"patent_results\":[],\"status\":\"pending\",\"title\":\"实测创意\",\"web_results\""
+        },
+        {
+          "name": "POST idea chat",
+          "url": "/api/idea/041443a8-e524-40ea-918f-15943f76afa6/chat",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"AI 响应失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "GET idea messages",
+          "url": "/api/idea/041443a8-e524-40ea-918f-15943f76afa6/messages",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"messages\":[{\"content\":\"请输出一句测试回复\",\"created_at\":\"2026-04-18 16:16:00\",\"id\":\"572a4136-5eaf-4bf3-85c9-6681c79c01dd\",\"role\":\"user\"}]}"
+        },
+        {
+          "name": "POST idea summarize",
+          "url": "/api/idea/041443a8-e524-40ea-918f-15943f76afa6/summarize",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"总结生成失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST idea delete",
+          "url": "/api/idea/041443a8-e524-40ea-918f-15943f76afa6/delete",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        }
+      ],
+      "idea_id": "041443a8-e524-40ea-918f-15943f76afa6"
+    },
+    "ui": {
+      "pages": [
+        {
+          "route": "/",
+          "http_ok": true,
+          "input_total": 2,
+          "input_filled": 0,
+          "textarea_total": 1,
+          "textarea_filled": 1,
+          "select_total": 2,
+          "select_set": 1,
+          "button_total": 10,
+          "button_clicked_ok": 10,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "AI 对话梳理",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "快速推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "深度推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "深度推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 7,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 8,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 9,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/search",
+          "http_ok": true,
+          "input_total": 3,
+          "input_filled": 3,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 8,
+          "select_set": 7,
+          "button_total": 6,
+          "button_clicked_ok": 6,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "搜索",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "统计分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "导出",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "清空",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "统计分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "导出",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/idea",
+          "http_ok": true,
+          "input_total": 2,
+          "input_filled": 1,
+          "textarea_total": 2,
+          "textarea_filled": 1,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 32,
+          "button_clicked_ok": 17,
+          "button_clicked_fail": 15,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 7,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 8,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 9,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 10,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 11,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 12,
+              "text": "+ 新建",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 13,
+              "text": "快速推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 14,
+              "text": "深度推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 15,
+              "text": "提交并分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 16,
+              "text": "清空",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 17,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 18,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 19,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 20,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 21,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 22,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 23,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 24,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 25,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 26,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 27,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 28,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 29,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 30,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 31,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            }
+          ]
+        },
+        {
+          "route": "/compare",
+          "http_ok": true,
+          "input_total": 4,
+          "input_filled": 2,
+          "textarea_total": 1,
+          "textarea_filled": 0,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 14,
+          "button_clicked_ok": 3,
+          "button_clicked_fail": 11,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "📎 上传",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "📋 粘贴文本",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "📎 上传",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(2)\n    - locator resolved to <button class=\"btn-upload\" onclick=\"uploadRef(this)\">📎 上传</butt"
+            },
+            {
+              "index": 3,
+              "text": "📋 粘贴",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(3)\n    - locator resolved to <button class=\"btn-paste\" onclick=\"pasteRef(this)\">📋 粘贴</button"
+            },
+            {
+              "index": 4,
+              "text": "×",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(4)\n    - locator resolved to <button title=\"移除\" class=\"btn-remove\" onclick=\"removeRef(this)\""
+            },
+            {
+              "index": 5,
+              "text": "+ 添加对比文件",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(5)\n    - locator resolved to <button class=\"btn-add\" id=\"btn-add-ref\" onclick=\"addRef()\">+ 添"
+            },
+            {
+              "index": 6,
+              "text": "📎 上传",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(6)\n    - locator resolved to <button class=\"btn-upload\" onclick=\"uploadOA()\">📎 上传</button>\n "
+            },
+            {
+              "index": 7,
+              "text": "📋 粘贴文本",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(7)\n    - locator resolved to <button class=\"btn-paste\" onclick=\"pasteOA()\">📋 粘贴文本</button>\n "
+            },
+            {
+              "index": 8,
+              "text": "通用对比",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(8)\n    - locator resolved to <button id=\"btn-compare\" class=\"btn-primary\" onclick=\"doCompare"
+            },
+            {
+              "index": 9,
+              "text": "创造性分析（三步法）",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(9)\n    - locator resolved to <button id=\"btn-inventive\" class=\"btn-inventive\" onclick=\"doInv"
+            },
+            {
+              "index": 10,
+              "text": "一审答复分析",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(10)\n    - locator resolved to <button id=\"btn-oa\" class=\"btn-inventive\" onclick=\"doOfficeAct"
+            },
+            {
+              "index": 11,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 12,
+              "text": "取消",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 13,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            }
+          ]
+        },
+        {
+          "route": "/settings",
+          "http_ok": true,
+          "input_total": 10,
+          "input_filled": 8,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 2,
+          "select_set": 2,
+          "button_total": 7,
+          "button_clicked_ok": 7,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "保存 CNIPR 配置",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "保存 Bing Key",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "保存 Lens Key",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "保存搜索配置",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "保存 AI 配置",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "+ 添加备用 AI",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "+ 添加备用 AI",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/ai",
+          "http_ok": true,
+          "input_total": 2,
+          "input_filled": 1,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 1,
+          "button_clicked_ok": 1,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "发送",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/patent/smoke-pat-001",
+          "http_ok": true,
+          "input_total": 3,
+          "input_filled": 1,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 17,
+          "button_clicked_ok": 8,
+          "button_clicked_fail": 9,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "🤖 AI 智能分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "📄 加载全文",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "📥 导出 PDF",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "⚖️ 对比分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "×",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "+ 添加对比文件",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "📋 粘贴",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 7,
+              "text": "×",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(7)\n    - locator resolved to <button title=\"移除\" class=\"btn-remove\" onclick=\"removeRef(this)\""
+            },
+            {
+              "index": 8,
+              "text": "+ 添加对比文件",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(8)\n    - locator resolved to <button class=\"btn-add\" id=\"btn-add-ref\" onclick=\"addRef()\">+ 添"
+            },
+            {
+              "index": 9,
+              "text": "📎 上传",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(9)\n    - locator resolved to <button class=\"btn-upload\" onclick=\"uploadOA()\">📎 上传</button>\n "
+            },
+            {
+              "index": 10,
+              "text": "📋 粘贴文本",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(10)\n    - locator resolved to <button class=\"btn-paste\" onclick=\"pasteOA()\">📋 粘贴文本</button>\n"
+            },
+            {
+              "index": 11,
+              "text": "通用对比",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(11)\n    - locator resolved to <button id=\"btn-compare\" class=\"btn-primary\" onclick=\"doCompar"
+            },
+            {
+              "index": 12,
+              "text": "创造性分析（三步法）",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(12)\n    - locator resolved to <button id=\"btn-inventive\" class=\"btn-inventive\" onclick=\"doIn"
+            },
+            {
+              "index": 13,
+              "text": "一审答复分析",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(13)\n    - locator resolved to <button id=\"btn-oa\" class=\"btn-inventive\" onclick=\"doOfficeAct"
+            },
+            {
+              "index": 14,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 15,
+              "text": "取消",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 16,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            }
+          ]
+        }
+      ],
+      "console_errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Cannot read properties of null (reading 'style')",
+        "Failed to load config: ReferenceError: config is not defined\n    at window.onload (http://127.0.0.1:3000/settings:288:13)"
+      ]
+    },
+    "summary": {
+      "boot_ok": true,
+      "api_total": 20,
+      "api_pass": 20,
+      "api_fail": 0,
+      "page_total": 7,
+      "button_total": 87,
+      "button_ok": 52,
+      "button_fail": 35,
+      "console_error_count": 4
+    }
+  },
+  {
+    "version": "v0.5.3",
+    "boot_ok": true,
+    "api": {
+      "cases": [
+        {
+          "name": "GET settings",
+          "url": "/api/settings",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"ai_api_key\":\"smok****nput\",\"ai_api_key_configured\":true,\"ai_base_url\":\"https://open.bigmodel.cn/api/paas/v4\",\"ai_fallbacks\":[{\"api_key\":\"OPEN****3456\",\"base_url\":\"https://openrouter.ai/api/v1\",\"model\":\"google/gemini-2."
+        },
+        {
+          "name": "POST save serpapi",
+          "url": "/api/settings/serpapi",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save bing",
+          "url": "/api/settings/bing",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save lens",
+          "url": "/api/settings/lens",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save ai",
+          "url": "/api/settings/ai",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST save fallbacks",
+          "url": "/api/settings/fallbacks",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"message\":\"已保存 1 个备用 AI\",\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST import patent",
+          "url": "/api/patents/import",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"imported\":1,\"status\":\"ok\"}"
+        },
+        {
+          "name": "POST search local",
+          "url": "/api/search",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"patents\":[{\"id\":\"f5927339-2f09-47a0-b3b6-36b2bbc9bb8f\",\"patent_number\":\"CN121540857A\",\"title\":\"面向燃氢航空发动机燃烧室的尾气分析测试系统、运行方法及分析测试方法\",\"abstract_text\":\"The invention provides a tail gas analysis test system, an operation me"
+        },
+        {
+          "name": "POST ai chat",
+          "url": "/api/ai/chat",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"content\":\"AI error: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai compare",
+          "url": "/api/ai/compare",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"content\":\"AI error: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai compare-matrix",
+          "url": "/api/ai/compare-matrix",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"对比失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai inventiveness",
+          "url": "/api/ai/inventiveness-analysis",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"创造性分析失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST ai office-action",
+          "url": "/api/ai/office-action-response",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"分析失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST idea submit",
+          "url": "/api/idea/submit",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"id\":\"0b01e1a5-3496-47c7-ab8b-bd3ef534cb57\",\"status\":\"ok\"}"
+        },
+        {
+          "name": "GET idea by id",
+          "url": "/api/idea/0b01e1a5-3496-47c7-ab8b-bd3ef534cb57",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"idea\":{\"analysis\":\"\",\"can_rerun\":true,\"created_at\":\"2026-04-18T16:18:41Z\",\"description\":\"用于页面按钮回归测试\",\"discussion_summary\":\"\",\"has_snapshot\":false,\"id\":\"0b01e1a5-3496-47c7-ab8b-bd3ef534cb57\",\"novelty_score\":null,\"patent"
+        },
+        {
+          "name": "GET idea report",
+          "url": "/api/idea/0b01e1a5-3496-47c7-ab8b-bd3ef534cb57/report",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"report\":{\"analysis\":\"\",\"created_at\":\"2026-04-18T16:18:41Z\",\"description\":\"用于页面按钮回归测试\",\"id\":\"0b01e1a5-3496-47c7-ab8b-bd3ef534cb57\",\"novelty_score\":null,\"patent_results\":[],\"status\":\"pending\",\"title\":\"实测创意\",\"web_results\""
+        },
+        {
+          "name": "POST idea chat",
+          "url": "/api/idea/0b01e1a5-3496-47c7-ab8b-bd3ef534cb57/chat",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"AI 响应失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "GET idea messages",
+          "url": "/api/idea/0b01e1a5-3496-47c7-ab8b-bd3ef534cb57/messages",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"messages\":[{\"content\":\"请输出一句测试回复\",\"created_at\":\"2026-04-18 16:18:41\",\"id\":\"387c1810-5021-4630-87ee-981a2e5fdac1\",\"role\":\"user\"}]}"
+        },
+        {
+          "name": "POST idea summarize",
+          "url": "/api/idea/0b01e1a5-3496-47c7-ab8b-bd3ef534cb57/summarize",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"error\":\"总结生成失败: AI API Key 无效或已过期。请到「设置」页面检查 API Key 配置。\"}"
+        },
+        {
+          "name": "POST idea delete",
+          "url": "/api/idea/0b01e1a5-3496-47c7-ab8b-bd3ef534cb57/delete",
+          "status": 200,
+          "ok": true,
+          "body_excerpt": "{\"status\":\"ok\"}"
+        }
+      ],
+      "idea_id": "0b01e1a5-3496-47c7-ab8b-bd3ef534cb57"
+    },
+    "ui": {
+      "pages": [
+        {
+          "route": "/",
+          "http_ok": true,
+          "input_total": 2,
+          "input_filled": 0,
+          "textarea_total": 1,
+          "textarea_filled": 1,
+          "select_total": 2,
+          "select_set": 1,
+          "button_total": 10,
+          "button_clicked_ok": 10,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "AI 对话梳理",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "快速推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "深度推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "深度推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 7,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 8,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 9,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/search",
+          "http_ok": true,
+          "input_total": 3,
+          "input_filled": 3,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 8,
+          "select_set": 7,
+          "button_total": 6,
+          "button_clicked_ok": 6,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "搜索",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "统计分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "导出",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "清空",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "统计分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "导出",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/idea",
+          "http_ok": true,
+          "input_total": 2,
+          "input_filled": 1,
+          "textarea_total": 2,
+          "textarea_filled": 1,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 33,
+          "button_clicked_ok": 18,
+          "button_clicked_fail": 15,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 7,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 8,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 9,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 10,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 11,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 12,
+              "text": "✕",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 13,
+              "text": "+ 新建",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 14,
+              "text": "快速推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 15,
+              "text": "深度推演",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 16,
+              "text": "提交并分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 17,
+              "text": "清空",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 18,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 19,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 20,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 21,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 22,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 23,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 24,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 25,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 26,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 27,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 28,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 29,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 30,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 31,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 32,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            }
+          ]
+        },
+        {
+          "route": "/compare",
+          "http_ok": true,
+          "input_total": 4,
+          "input_filled": 2,
+          "textarea_total": 1,
+          "textarea_filled": 0,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 14,
+          "button_clicked_ok": 3,
+          "button_clicked_fail": 11,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "📎 上传",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "📋 粘贴文本",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "📎 上传",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(2)\n    - locator resolved to <button class=\"btn-upload\" onclick=\"uploadRef(this)\">📎 上传</butt"
+            },
+            {
+              "index": 3,
+              "text": "📋 粘贴",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(3)\n    - locator resolved to <button class=\"btn-paste\" onclick=\"pasteRef(this)\">📋 粘贴</button"
+            },
+            {
+              "index": 4,
+              "text": "×",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(4)\n    - locator resolved to <button title=\"移除\" class=\"btn-remove\" onclick=\"removeRef(this)\""
+            },
+            {
+              "index": 5,
+              "text": "+ 添加对比文件",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(5)\n    - locator resolved to <button class=\"btn-add\" id=\"btn-add-ref\" onclick=\"addRef()\">+ 添"
+            },
+            {
+              "index": 6,
+              "text": "📎 上传",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(6)\n    - locator resolved to <button class=\"btn-upload\" onclick=\"uploadOA()\">📎 上传</button>\n "
+            },
+            {
+              "index": 7,
+              "text": "📋 粘贴文本",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(7)\n    - locator resolved to <button class=\"btn-paste\" onclick=\"pasteOA()\">📋 粘贴文本</button>\n "
+            },
+            {
+              "index": 8,
+              "text": "通用对比",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(8)\n    - locator resolved to <button id=\"btn-compare\" class=\"btn-primary\" onclick=\"doCompare"
+            },
+            {
+              "index": 9,
+              "text": "创造性分析（三步法）",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(9)\n    - locator resolved to <button id=\"btn-inventive\" class=\"btn-inventive\" onclick=\"doInv"
+            },
+            {
+              "index": 10,
+              "text": "一审答复分析",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(10)\n    - locator resolved to <button id=\"btn-oa\" class=\"btn-inventive\" onclick=\"doOfficeAct"
+            },
+            {
+              "index": 11,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 12,
+              "text": "取消",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 13,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            }
+          ]
+        },
+        {
+          "route": "/settings",
+          "http_ok": true,
+          "input_total": 10,
+          "input_filled": 8,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 2,
+          "select_set": 2,
+          "button_total": 7,
+          "button_clicked_ok": 7,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "保存 CNIPR 配置",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "保存 Bing Key",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "保存 Lens Key",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "保存搜索配置",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "保存 AI 配置",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "+ 添加备用 AI",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "+ 添加备用 AI",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/ai",
+          "http_ok": true,
+          "input_total": 2,
+          "input_filled": 1,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 1,
+          "button_clicked_ok": 1,
+          "button_clicked_fail": 0,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "发送",
+              "ok": true,
+              "error": ""
+            }
+          ]
+        },
+        {
+          "route": "/patent/smoke-pat-001",
+          "http_ok": true,
+          "input_total": 3,
+          "input_filled": 1,
+          "textarea_total": 0,
+          "textarea_filled": 0,
+          "select_total": 1,
+          "select_set": 1,
+          "button_total": 17,
+          "button_clicked_ok": 8,
+          "button_clicked_fail": 9,
+          "button_details": [
+            {
+              "index": 0,
+              "text": "🤖 AI 智能分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 1,
+              "text": "📄 加载全文",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 2,
+              "text": "📥 导出 PDF",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 3,
+              "text": "⚖️ 对比分析",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 4,
+              "text": "×",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 5,
+              "text": "+ 添加对比文件",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 6,
+              "text": "📋 粘贴",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 7,
+              "text": "×",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(7)\n    - locator resolved to <button title=\"移除\" class=\"btn-remove\" onclick=\"removeRef(this)\""
+            },
+            {
+              "index": 8,
+              "text": "+ 添加对比文件",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(8)\n    - locator resolved to <button class=\"btn-add\" id=\"btn-add-ref\" onclick=\"addRef()\">+ 添"
+            },
+            {
+              "index": 9,
+              "text": "📎 上传",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(9)\n    - locator resolved to <button class=\"btn-upload\" onclick=\"uploadOA()\">📎 上传</button>\n "
+            },
+            {
+              "index": 10,
+              "text": "📋 粘贴文本",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(10)\n    - locator resolved to <button class=\"btn-paste\" onclick=\"pasteOA()\">📋 粘贴文本</button>\n"
+            },
+            {
+              "index": 11,
+              "text": "通用对比",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(11)\n    - locator resolved to <button id=\"btn-compare\" class=\"btn-primary\" onclick=\"doCompar"
+            },
+            {
+              "index": 12,
+              "text": "创造性分析（三步法）",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(12)\n    - locator resolved to <button id=\"btn-inventive\" class=\"btn-inventive\" onclick=\"doIn"
+            },
+            {
+              "index": 13,
+              "text": "一审答复分析",
+              "ok": false,
+              "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"button\").nth(13)\n    - locator resolved to <button id=\"btn-oa\" class=\"btn-inventive\" onclick=\"doOfficeAct"
+            },
+            {
+              "index": 14,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            },
+            {
+              "index": 15,
+              "text": "取消",
+              "ok": true,
+              "error": ""
+            },
+            {
+              "index": 16,
+              "text": "",
+              "ok": false,
+              "error": "not_visible_or_disabled"
+            }
+          ]
+        }
+      ],
+      "console_errors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Cannot read properties of null (reading 'style')",
+        "Failed to load config: ReferenceError: config is not defined\n    at window.onload (http://127.0.0.1:3000/settings:288:13)"
+      ]
+    },
+    "summary": {
+      "boot_ok": true,
+      "api_total": 20,
+      "api_pass": 20,
+      "api_fail": 0,
+      "page_total": 7,
+      "button_total": 88,
+      "button_ok": 53,
+      "button_fail": 35,
+      "console_error_count": 4
+    }
+  }
+]

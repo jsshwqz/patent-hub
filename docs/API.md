@@ -6,6 +6,8 @@
 http://127.0.0.1:3000
 ```
 
+> 默认端口为 `3000`，可通过环境变量 `INNOFORGE_PORT` 覆盖（例如 `http://127.0.0.1:3900`）。
+
 ## 说明 / Notes
 
 - 搜索历史为前端 `localStorage`，没有 `/api/search/history` 接口。
@@ -193,6 +195,10 @@ Request:
 }
 ```
 
+说明：
+- 推荐配合 `tools/import_public_patents.py` 使用，可将公开公告数据包（CSV/JSON/JSONL）批量导入本地库。
+- 无 CNIPR 授权时，可通过该方式构建本地主检索链路。
+
 ### 3) 丰富专利信息 / Enrich Patent
 
 **GET** `/api/patent/enrich/:id`
@@ -296,4 +302,3 @@ Fields:
   "message": "..."
 }
 ```
-

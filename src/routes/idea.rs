@@ -363,15 +363,26 @@ pub async fn api_idea_delete(
     State(s): State<AppState>,
     Path(idea_id): Path<String>,
 ) -> Json<serde_json::Value> {
-    // 级联删除：证据链 → 研发状态 → 特征卡片 → 消息 → 创意
-    let _ = s.db.delete_evidence_by_idea(&idea_id);
-    let _ = s.db.delete_research_state(&idea_id);
-    let _ = s.db.delete_feature_cards_by_idea(&idea_id);
-    let _ = s.db.delete_idea_messages(&idea_id);
-    match s.db.delete_idea(&idea_id) {
-        Ok(_) => Json(json!({"status": "ok"})),
-        Err(e) => Json(json!({"status": "error", "message": e.to_string()})),
+    // 带重试的原子级联删除（处理短暂数据库锁）
+    let mut last_err = String::new();
+    for attempt in 0..3 {
+        match s.db.purge_idea(&idea_id) {
+            Ok(_) => return Json(json!({"status": "ok"})),
+            Err(e) => {
+                let msg = e.to_string();
+                last_err = msg.clone();
+                if msg.to_lowercase().contains("database is locked") && attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(
+                        150 * (attempt + 1) as u64,
+                    ))
+                    .await;
+                    continue;
+                }
+                break;
+            }
+        }
     }
+    Json(json!({"status": "error", "message": last_err}))
 }
 
 // ── Evidence chain API ───────────────────────────────────────────────
@@ -610,7 +621,24 @@ pub async fn api_idea_chat(
     {
         Ok(content) => content,
         Err(e) => {
-            return Json(json!({"error": format!("AI 响应失败: {}", e)}));
+            // 上游 AI 失败时，返回可执行的本地降级建议，避免前端按钮功能整体失效。
+            let err_msg = e.to_string();
+            tracing::warn!("idea_chat degraded for {}: {}", idea_id, err_msg);
+            let novelty = idea
+                .novelty_score
+                .map(|v| format!("{:.1}", v))
+                .unwrap_or_else(|| "N/A".to_string());
+            format!(
+                "当前 AI 服务暂不可用（{}）。\n\
+                 先给你一个可执行的降级建议：\n\
+                 1. 目标拆解：把当前创意拆成「核心功能、关键约束、验证指标」三项。\n\
+                 2. 最小实验：优先验证一条最高风险假设，记录输入、过程、输出。\n\
+                 3. 竞争检索：补充 2-3 个同类方案关键词，更新对比结论。\n\
+                 4. 结论模板：保留“通过/不通过/待验证”三态，避免模糊结论。\n\
+                 参考信息：创意状态={}，当前新颖性评分={}。\n\
+                 你可继续发送具体问题，我会按该结构继续协助。",
+                err_msg, idea.status, novelty
+            )
         }
     };
 

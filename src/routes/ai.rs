@@ -9,11 +9,20 @@ use futures::stream::Stream;
 use reqwest::Client;
 use serde_json::json;
 use std::convert::Infallible;
+use std::time::Instant;
+
+const QUICK_WEB_UPSTREAM_TIMEOUT_SECS: u64 = 6;
+const QUICK_WEB_TOTAL_BUDGET_SECS: u64 = 8;
+const AI_CHAT_ROUTE_TIMEOUT_SECS_WEB: u64 = 20;
+const AI_CHAT_ROUTE_TIMEOUT_SECS_NORMAL: u64 = 35;
 
 /// Quick web search: SerpAPI → Sogou free fallback. Returns formatted context string.
 async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
+    let start = Instant::now();
     let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(
+            QUICK_WEB_UPSTREAM_TIMEOUT_SECS,
+        ))
         .build()
         .ok()?;
 
@@ -26,7 +35,7 @@ async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
             .query(&[
                 ("q", query),
                 ("api_key", serpapi_key),
-                ("num", "5"),
+                ("num", "3"),
                 ("hl", "zh-cn"),
             ])
             .send()
@@ -34,7 +43,7 @@ async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
         {
             if let Ok(json) = resp.json::<serde_json::Value>().await {
                 if let Some(items) = json["organic_results"].as_array() {
-                    for r in items.iter().take(5) {
+                    for r in items.iter().take(3) {
                         results.push((
                             r["title"].as_str().unwrap_or("").to_string(),
                             r["snippet"].as_str().unwrap_or("").to_string(),
@@ -44,6 +53,10 @@ async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
                 }
             }
         }
+    }
+
+    if start.elapsed().as_secs() >= QUICK_WEB_TOTAL_BUDGET_SECS {
+        return None;
     }
 
     // Sogou free fallback
@@ -61,7 +74,7 @@ async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
         {
             if let Ok(html) = resp.text().await {
                 // Simple extraction of results from Sogou HTML
-                for cap in html.split("vrTitle").skip(1).take(5) {
+                for cap in html.split("vrTitle").skip(1).take(3) {
                     if let Some(title_start) = cap.find('>') {
                         let after = &cap[title_start + 1..];
                         if let Some(title_end) = after.find("</") {
@@ -107,13 +120,19 @@ async fn quick_web_search(query: &str, serpapi_key: &str) -> Option<String> {
     }
 
     let mut context = String::from("【联网搜索结果】\n");
-    for (i, (title, snippet, link)) in results.iter().enumerate() {
-        context.push_str(&format!("{}. {}\n", i + 1, title));
-        if !snippet.is_empty() {
-            context.push_str(&format!("   {}\n", snippet));
+    for (i, (title, snippet, link)) in results.iter().enumerate().take(3) {
+        let title_short: String = title.chars().take(80).collect();
+        let snippet_short: String = snippet.chars().take(120).collect();
+        let link_short: String = link.chars().take(120).collect();
+        context.push_str(&format!("{}. {}\n", i + 1, title_short));
+        if !snippet_short.is_empty() {
+            context.push_str(&format!("   {}\n", snippet_short));
         }
-        if !link.is_empty() {
-            context.push_str(&format!("   {}\n", link));
+        if !link_short.is_empty() {
+            context.push_str(&format!("   {}\n", link_short));
+        }
+        if title != &title_short {
+            context.push_str("   [标题已截断]\n");
         }
     }
     Some(context)
@@ -228,6 +247,7 @@ pub async fn api_ai_chat(
     State(s): State<AppState>,
     Json(req): Json<AiChatRequest>,
 ) -> Json<AiResponse> {
+    let req_start = Instant::now();
     let ai = s
         .config
         .read()
@@ -241,11 +261,13 @@ pub async fn api_ai_chat(
         .clone();
 
     // Optional web search: fetch real-time info before AI response
+    let web_start = Instant::now();
     let web_context = if req.web_search {
         quick_web_search(&req.message, &serpapi_key).await
     } else {
         None
     };
+    let web_ms = web_start.elapsed().as_millis();
 
     let ctx = req
         .patent_id
@@ -269,24 +291,48 @@ pub async fn api_ai_chat(
         None => base_prompt.to_string(),
     };
 
-    let result = if req.history.is_empty() {
-        let ctx_with_web = match &web_context {
-            Some(web) => Some(format!("{}\n{}", ctx.as_deref().unwrap_or(""), web)),
-            None => ctx,
-        };
-        ai.chat(&req.message, ctx_with_web.as_deref()).await
+    let ai_start = Instant::now();
+    let route_timeout_secs = if req.web_search {
+        AI_CHAT_ROUTE_TIMEOUT_SECS_WEB
     } else {
-        let mut history = req.history;
-        history.push(("user".to_string(), req.message));
-        // 超过 ~8000 token 时自动压缩早期对话为摘要
-        let history = compress_history(&ai, history, 8000).await;
-        ai.chat_with_history(&system_prompt, history, 0.7).await
+        AI_CHAT_ROUTE_TIMEOUT_SECS_NORMAL
     };
+    let result = tokio::time::timeout(std::time::Duration::from_secs(route_timeout_secs), async {
+        if req.history.is_empty() {
+            let ctx_with_web = match &web_context {
+                Some(web) => Some(format!("{}\n{}", ctx.as_deref().unwrap_or(""), web)),
+                None => ctx,
+            };
+            ai.chat(&req.message, ctx_with_web.as_deref()).await
+        } else {
+            let mut history = req.history;
+            history.push(("user".to_string(), req.message));
+            // 超过 ~8000 token 时自动压缩早期对话为摘要
+            let history = compress_history(&ai, history, 8000).await;
+            ai.chat_with_history(&system_prompt, history, 0.7).await
+        }
+    })
+    .await;
+    let ai_ms = ai_start.elapsed().as_millis();
+    let total_ms = req_start.elapsed().as_millis();
+    tracing::info!(
+        "api_ai_chat timing: web_search={} web_ms={} ai_ms={} total_ms={}",
+        req.web_search,
+        web_ms,
+        ai_ms,
+        total_ms
+    );
 
     match result {
-        Ok(content) => Json(AiResponse { content }),
-        Err(e) => Json(AiResponse {
+        Ok(Ok(content)) => Json(AiResponse { content }),
+        Ok(Err(e)) => Json(AiResponse {
             content: format!("AI error: {e}"),
+        }),
+        Err(_) => Json(AiResponse {
+            content: format!(
+                "AI 响应超时（>{}s），请重试或切换模型后再试。",
+                route_timeout_secs
+            ),
         }),
     }
 }

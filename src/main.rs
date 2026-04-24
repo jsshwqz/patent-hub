@@ -3,8 +3,8 @@
 //! Axum Web 服务器入口，注册所有路由并启动 HTTP 服务。
 //! Axum web server entry point, registers all routes and starts HTTP service.
 //!
-//! 默认监听 `0.0.0.0:3000`，自动打开浏览器。
-//! Listens on `0.0.0.0:3000` by default, auto-opens browser.
+//! 默认监听 `0.0.0.0:3000`（可通过 `INNOFORGE_PORT` 覆盖），自动打开浏览器。
+//! Listens on `0.0.0.0:3000` by default (override via `INNOFORGE_PORT`), auto-opens browser.
 
 mod ai;
 mod db;
@@ -278,15 +278,19 @@ async fn main() -> anyhow::Result<()> {
         ))
         .with_state(state);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let port: u16 = std::env::var("INNOFORGE_PORT")
+        .ok()
+        .and_then(|v| v.parse::<u16>().ok())
+        .unwrap_or(3000);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("创研台 InnoForge running at http://{addr}");
-    println!("Local access: http://127.0.0.1:3000");
+    println!("Local access: http://127.0.0.1:{port}");
 
     // 自动打开浏览器（设置 INNOFORGE_NO_OPEN 可禁用）
     // Auto-open browser (disabled when INNOFORGE_NO_OPEN is set)
     if std::env::var("INNOFORGE_NO_OPEN").is_err() {
-        let url = "http://127.0.0.1:3000/";
-        if let Err(e) = open::that(url) {
+        let url = format!("http://127.0.0.1:{port}/");
+        if let Err(e) = open::that(&url) {
             println!("Could not open browser: {}", e);
             println!("Please visit: {}", url);
         }
@@ -294,7 +298,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 显示局域网 IP（方便手机访问）/ Show local IP for mobile access
     if let Ok(local_ip) = local_ip_address::local_ip() {
-        println!("Mobile access: http://{}:3000", local_ip);
+        println!("Mobile access: http://{}:{port}", local_ip);
     }
 
     axum::Server::bind(&addr)

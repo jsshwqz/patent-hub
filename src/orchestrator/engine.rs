@@ -175,17 +175,34 @@ impl Orchestrator {
 
     /// 状态机决策：根据当前状态决定下一步
     fn decide_next(&self, ctx: &PipelineContext, current: PipelineStep) -> Option<PipelineStep> {
+        let diversity_gate_runs = ctx
+            .step_results
+            .iter()
+            .filter(|r| r.step == PipelineStep::DiversityGate)
+            .count();
+
         // DiversityGate 回退逻辑
-        if current == PipelineStep::DiversityGate
-            && ctx.diversity_score < 0.3
-            && ctx.retry_count < 2
-        {
+        if should_fallback_diversity(
+            self.quick_mode,
+            current,
+            ctx.diversity_score,
+            ctx.retry_count,
+            diversity_gate_runs,
+        ) {
+            // 正常最多回退 2 轮；若历史快照/状态异常导致 retry_count 未增长，也用 step 历史做硬上限兜底。
             tracing::info!(
                 "多样性不足 ({:.0}%)，回退到 SearchWeb（第 {} 轮）",
                 ctx.diversity_score * 100.0,
-                ctx.retry_count + 1
+                diversity_gate_runs
             );
             return Some(PipelineStep::SearchWeb);
+        }
+        if !self.quick_mode && current == PipelineStep::DiversityGate && ctx.diversity_score < 0.3 {
+            tracing::warn!(
+                "多样性回退已达上限（retry_count={}, diversity_gate_runs={}），继续后续步骤",
+                ctx.retry_count,
+                diversity_gate_runs
+            );
         }
 
         // 默认：线性推进
@@ -288,5 +305,66 @@ impl Orchestrator {
                 sub_progress: None,
             });
         }
+    }
+}
+
+fn should_fallback_diversity(
+    quick_mode: bool,
+    current: PipelineStep,
+    diversity_score: f64,
+    retry_count: u32,
+    diversity_gate_runs: usize,
+) -> bool {
+    if quick_mode || current != PipelineStep::DiversityGate || diversity_score >= 0.3 {
+        return false;
+    }
+    // 正常路径：最多回退 2 轮（第 1/2 次 DiversityGate）
+    // 异常路径：即使 retry_count 异常未增长，diversity_gate_runs 也会把回退硬限制在 2 次内。
+    retry_count < 2 && diversity_gate_runs <= 2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_fallback_diversity;
+    use crate::pipeline::state::PipelineStep;
+
+    #[test]
+    fn diversity_fallback_first_two_rounds_allowed() {
+        assert!(should_fallback_diversity(
+            false,
+            PipelineStep::DiversityGate,
+            0.0,
+            0,
+            1
+        ));
+        assert!(should_fallback_diversity(
+            false,
+            PipelineStep::DiversityGate,
+            0.1,
+            1,
+            2
+        ));
+    }
+
+    #[test]
+    fn diversity_fallback_stops_after_limit() {
+        assert!(!should_fallback_diversity(
+            false,
+            PipelineStep::DiversityGate,
+            0.0,
+            2,
+            3
+        ));
+    }
+
+    #[test]
+    fn diversity_fallback_has_hard_guard_when_retry_counter_stuck() {
+        assert!(!should_fallback_diversity(
+            false,
+            PipelineStep::DiversityGate,
+            0.0,
+            0,
+            3
+        ));
     }
 }

@@ -66,6 +66,43 @@ fn now_str() -> String {
     chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+/// Canonical patent key for deduplication.
+/// Keeps `country_prefix + main_digits` when present, strips spaces/dots/kind code.
+pub fn canonical_patent_key(raw: &str) -> String {
+    let upper = raw.trim().to_uppercase();
+    if upper.is_empty() {
+        return String::new();
+    }
+    let clean: String = upper
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect();
+    if clean.is_empty() {
+        return String::new();
+    }
+
+    let bytes = clean.as_bytes();
+    let mut i = 0usize;
+    while i + 2 < bytes.len() {
+        if bytes[i].is_ascii_alphabetic() && bytes[i + 1].is_ascii_alphabetic() {
+            let mut j = i + 2;
+            while j < bytes.len() && bytes[j].is_ascii_digit() {
+                j += 1;
+            }
+            if j - (i + 2) >= 6 {
+                return clean[i..j].to_string();
+            }
+        }
+        i += 1;
+    }
+
+    let digits: String = clean.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() >= 8 {
+        return digits;
+    }
+    clean
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum SearchType {
     Applicant,    // 按申请人搜索
@@ -136,6 +173,34 @@ pub struct PatentSummary {
     pub relevance_score: Option<f64>,
     #[serde(default)]
     pub score_source: Option<String>, // 评分来源说明
+}
+
+#[cfg(test)]
+mod tests {
+    use super::canonical_patent_key;
+
+    #[test]
+    fn canonical_key_cn_with_spaces_and_kind() {
+        assert_eq!(canonical_patent_key("CN 116401354 A"), "CN116401354");
+    }
+
+    #[test]
+    fn canonical_key_us_with_kind_digit() {
+        assert_eq!(canonical_patent_key("US1234567B2"), "US1234567");
+    }
+
+    #[test]
+    fn canonical_key_google_patent_url_tail() {
+        assert_eq!(
+            canonical_patent_key("https://patents.google.com/patent/CN109876543A/zh"),
+            "CN109876543"
+        );
+    }
+
+    #[test]
+    fn canonical_key_digits_fallback() {
+        assert_eq!(canonical_patent_key("202310123456.7"), "2023101234567");
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

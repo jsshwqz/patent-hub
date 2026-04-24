@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
 
+const PROVIDER_HTTP_TIMEOUT_SECS: u64 = 25;
+const PROVIDER_MAX_RETRIES: usize = 1;
+
 /// 单个 AI 服务商端点 / A single AI provider endpoint.
 #[derive(Clone)]
 pub(super) struct AiProvider {
@@ -139,7 +142,7 @@ impl AiClient {
     pub fn with_config(base_url: &str, api_key: &str, model: &str) -> Self {
         Self {
             client: Client::builder()
-                .timeout(Duration::from_secs(120))
+                .timeout(Duration::from_secs(PROVIDER_HTTP_TIMEOUT_SECS))
                 .build()
                 .unwrap_or_else(|_| Client::new()),
             primary: AiProvider {
@@ -175,7 +178,7 @@ impl AiClient {
             temperature,
         };
 
-        let max_retries = 2;
+        let max_retries = PROVIDER_MAX_RETRIES;
         let mut last_err = None;
         for attempt in 0..max_retries {
             if attempt > 0 {
@@ -267,7 +270,7 @@ impl AiClient {
     }
 
     /// 全局超时上限
-    pub(super) const GLOBAL_TIMEOUT_SECS: u64 = 120;
+    pub(super) const GLOBAL_TIMEOUT_SECS: u64 = 45;
 
     /// 带全局超时的 AI 调用入口
     pub(super) async fn send_chat(

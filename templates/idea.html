@@ -1328,7 +1328,8 @@
     function showNewIdeaForm() {
         clearForm();
         document.getElementById('idea-form').style.display = '';
-        document.getElementById('results-area').style.display = 'none';
+        var resultsArea = document.getElementById('results-area');
+        if (resultsArea) resultsArea.style.display = 'none';
         var titleEl = document.getElementById('idea-title');
         if (titleEl) titleEl.focus();
         // Update URL without reload
@@ -1427,7 +1428,12 @@
         if (!confirm('确定删除「' + title + '」及其所有讨论记录？')) return;
         try {
             const resp = await fetch('/api/idea/' + encodeURIComponent(id) + '/delete', { method: 'POST' });
-            const data = await resp.json();
+            let data = null;
+            try {
+                data = await resp.json();
+            } catch (_) {
+                data = { status: 'error', message: await resp.text() };
+            }
             if (data.status === 'ok') {
                 if (currentIdeaId === id) {
                     currentIdeaId = null;
@@ -1439,7 +1445,7 @@
                 }
                 loadHistory();
             } else {
-                alert(data.message || '删除失败');
+                alert((data && data.message) ? data.message : ('删除失败（HTTP ' + resp.status + '）'));
             }
         } catch(e) {
             alert('请求失败: ' + e.message);
